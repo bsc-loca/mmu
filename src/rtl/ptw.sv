@@ -303,7 +303,17 @@ assign ptw_dmem_comm_o.req.cmd = (current_state == S_SET_DIRTY) ? M_XA_OR : M_XR
 assign ptw_dmem_comm_o.req.typ = MT_D;
 assign ptw_dmem_comm_o.req.addr = pte_addr;
 assign ptw_dmem_comm_o.req.kill = 1'b0;
-assign ptw_dmem_comm_o.req.data = 64'(unsigned'({ >> {pte_wdata}}));
+assign ptw_dmem_comm_o.req.data = 64'(unsigned'({pte_wdata.ppn, 
+                                                 pte_wdata.rfs, 
+                                                 pte_wdata.d,
+                                                 pte_wdata.a,
+                                                 pte_wdata.g,
+                                                 pte_wdata.u,
+                                                 pte_wdata.x,
+                                                 pte_wdata.w,
+                                                 pte_wdata.r,
+                                                 pte_wdata.v
+                                                 }));
 
 // TLB Response
 assign resp_err = (current_state == S_ERROR);
