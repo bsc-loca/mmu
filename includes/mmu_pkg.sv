@@ -106,6 +106,7 @@ typedef struct packed {
     logic miss;
     logic [PPN_SIZE-1:0] ppn; 
     tlb_ex_t xcpt;
+    logic [7:0] hit_idx;
 } tlb_cache_resp_t;
 
 typedef struct packed {

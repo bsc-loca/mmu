@@ -88,7 +88,6 @@ module tlb_wrapper(
     output logic pmu_tlb_miss_o
 );
 
-`ifndef TLB_CHISEL
 cache_tlb_comm_t cache_tlb_comm;
 tlb_cache_comm_t tlb_cache_comm;
 tlb_ptw_comm_t tlb_ptw_comm;
@@ -170,69 +169,5 @@ assign ptw_req_o_addr = tlb_ptw_comm.req.vpn;
 assign ptw_req_o_prv = tlb_ptw_comm.req.prv;
 assign ptw_req_o_store = tlb_ptw_comm.req.store;
 assign ptw_req_o_fetch = tlb_ptw_comm.req.fetch;
-
-`else
-TLB_chisel tlb(.clk ( clk_i ), .reset ( ~rstn_i ), // works on a positive edge
-    .io_req_ready                               ( mem_req_ready_o        ),  
-    .io_req_valid                               ( mem_treq_i_valid       ),
-    .io_req_bits_asid                           ( mem_treq_i_asid        ),
-    .io_req_bits_vpn                            ( mem_treq_i_vpn         ),
-    .io_req_bits_passthrough                    ( mem_treq_i_passthrough ),
-    .io_req_bits_instruction                    ( mem_treq_i_instruction ),
-    .io_req_bits_store                          ( mem_treq_i_store       ), 
-    .io_resp_miss                               ( tlb_tresp_o_miss       ),
-    .io_resp_ppn                                ( tlb_tresp_o_ppn        ),
-    .io_resp_xcpt_ld                            ( tlb_tresp_o_xcpt_ld    ),
-    .io_resp_xcpt_st                            ( tlb_tresp_o_xcpt_st    ),
-    .io_resp_xcpt_if                            ( tlb_tresp_o_xcpt__if   ),
-    .io_resp_hit_idx                            ( tlb_tresp_o_hit_idx    ),
-    .io_ptw_req_ready                           ( ptw_req_ready_i        ),
-    .io_ptw_req_valid                           ( ptw_req_o_valid        ),
-    .io_ptw_req_bits_addr                       ( ptw_req_o_addr         ),
-    .io_ptw_req_bits_prv                        ( ptw_req_o_prv          ),
-    .io_ptw_req_bits_store                      ( ptw_req_o_store        ),
-    .io_ptw_req_bits_fetch                      ( ptw_req_o_fetch        ), 
-    .io_ptw_resp_valid                          ( ptw_resp_i_valid       ),
-    .io_ptw_resp_bits_error                     ( ptw_resp_i_error       ),
-    .io_ptw_resp_bits_pte_ppn                   ( ptw_resp_i_pte_ppn     ),
-    .io_ptw_resp_bits_pte_reserved_for_software ( ptw_resp_i_pte_rfs     ),
-    .io_ptw_resp_bits_pte_d                     ( ptw_resp_i_pte_d       ),
-    .io_ptw_resp_bits_pte_a                     ( ptw_resp_i_pte_a       ),
-    .io_ptw_resp_bits_pte_g                     ( ptw_resp_i_pte_g       ),
-    .io_ptw_resp_bits_pte_u                     ( ptw_resp_i_pte_u       ),
-    .io_ptw_resp_bits_pte_x                     ( ptw_resp_i_pte_x       ),
-    .io_ptw_resp_bits_pte_w                     ( ptw_resp_i_pte_w       ),
-    .io_ptw_resp_bits_pte_r                     ( ptw_resp_i_pte_r       ),
-    .io_ptw_resp_bits_pte_v                     ( ptw_resp_i_pte_v       ),
-    .io_ptw_resp_bits_level                     ( ptw_resp_i_level       ),
-    .io_ptw_status_sd                           ( ptw_status_i_sd        ),
-    .io_ptw_status_zero5                        ( ptw_status_i_zero5     ),
-    .io_ptw_status_sxl                          ( ptw_status_i_sxl       ),
-    .io_ptw_status_uxl                          ( ptw_status_i_uxl       ),
-    .io_ptw_status_zero4                        ( ptw_status_i_zero4     ),
-    .io_ptw_status_tsr                          ( ptw_status_i_tsr       ),
-    .io_ptw_status_tw                           ( ptw_status_i_tw        ),
-    .io_ptw_status_tvm                          ( ptw_status_i_tvm       ),
-    .io_ptw_status_mxr                          ( ptw_status_i_mxr       ),
-    .io_ptw_status_sum                          ( ptw_status_i_sum       ),
-    .io_ptw_status_mprv                         ( ptw_status_i_mprv      ),
-    .io_ptw_status_xs                           ( ptw_status_i_xs        ),
-    .io_ptw_status_fs                           ( ptw_status_i_fs        ),
-    .io_ptw_status_mpp                          ( ptw_status_i_mpp       ),
-    .io_ptw_status_zero3                        ( ptw_status_i_zero3     ),
-    .io_ptw_status_spp                          ( ptw_status_i_spp       ),
-    .io_ptw_status_mpie                         ( ptw_status_i_mpie      ),
-    .io_ptw_status_zero2                        ( ptw_status_i_zero2     ),
-    .io_ptw_status_spie                         ( ptw_status_i_spie      ),
-    .io_ptw_status_upie                         ( ptw_status_i_upie      ),
-    .io_ptw_status_mie                          ( ptw_status_i_mie       ),
-    .io_ptw_status_zero1                        ( ptw_status_i_zero1     ),
-    .io_ptw_status_sie                          ( ptw_status_i_sie       ),
-    .io_ptw_status_uie                          ( ptw_status_i_uie       ),
-    .io_ptw_invalidate                          ( ptw_invalidate_i       ),
-    .io_priv_lvl                                ( csr_priv_lvl_i         ),
-    .io_en_translation                          ( csr_en_translation_i   )   
-);
-`endif
 
 endmodule
