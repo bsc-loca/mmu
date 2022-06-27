@@ -13,11 +13,12 @@
 * ------------------------------------------------------------
 */
 
-import mmu_pkg::*;
-
 /* TLB follows SV39 specification*/
 
-module tlb (
+module tlb 
+import mmu_pkg::*;
+#(
+)(
     input logic clk_i,
     input logic rstn_i,
 

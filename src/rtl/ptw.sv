@@ -13,10 +13,9 @@
 * ------------------------------------------------------------
 */
 
+module ptw 
 import mmu_pkg::*;
-import riscv_pkg::*;
-
-module ptw #(
+#(
 )(
     input logic clk_i,
     input logic rstn_i,
@@ -366,6 +365,7 @@ always_comb begin
     pmu_ptw_hit_o = 1'b0;
     pmu_ptw_miss_o = 1'b0;
     ptw_dmem_comm_o.req.valid = 1'b0;
+    next_state = current_state;
     case (current_state)
         S_READY : begin
             count_d = '0;

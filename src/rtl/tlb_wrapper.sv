@@ -16,9 +16,10 @@
  * -----------------------------------------------
  */
 
+module tlb_wrapper 
 import mmu_pkg::*;
-
-module tlb_wrapper(
+#(
+)(
     input logic clk_i,
     input logic rstn_i,
     // cache interface  

@@ -13,9 +13,9 @@
 * ------------------------------------------------------------
 */
 
+module ptw_arb 
 import mmu_pkg::*;
-
-module ptw_arb #(
+#(
 )(
     input logic clk_i,
     input logic rstn_i,
@@ -57,6 +57,10 @@ end
 always_comb begin
     is_req_waiting_d = is_req_waiting_q;
     itlb_req_waiting_d = itlb_req_waiting_q;
+    ptw_itlb_comm_o = '0;
+    ptw_dtlb_comm_o = '0;
+    tlb_ptw_comm_o = '0;
+    next_state = current_state;
     ptw_itlb_comm_o.ptw_ready = 1'b0;
     ptw_dtlb_comm_o.ptw_ready = 1'b0;
     ptw_itlb_comm_o.ptw_status = ptw_tlb_comm_i.ptw_status;
