@@ -155,7 +155,7 @@ assign is_pte_sx = pte.v && pte.x && !pte.u;
 
 // Page Table Entry pointer
 logic [63:0] aux_pte_addr;
-assign aux_pte_addr = 64'(unsigned'({r_pte.ppn, vpn_idx, ($clog2(XLEN/8))'(1'b0)}));
+assign aux_pte_addr = 64'(unsigned'({r_pte.ppn, vpn_idx, ($clog2(riscv_pkg::XLEN/8))'(1'b0)}));
 assign pte_addr = aux_pte_addr[SIZE_VADDR:0] ; // For Sv39: (r_pte.ppn << 12) + (vpn_idx << 3)
 
 // PTW Ready
