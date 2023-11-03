@@ -125,7 +125,7 @@ logic read_ok, write_ok, exec_ok, sv_priv_lvl; // value chagned by permission ch
 assign vm_enable = cache_tlb_comm_i.vm_enable;
 assign passthrough = cache_tlb_comm_i.req.passthrough;
 
-assign bad_va = (cache_vpn[VPN_SIZE] != cache_vpn[VPN_SIZE-1]) ? 1'b1 : 1'b0;
+assign bad_va = (vm_enable && (cache_vpn[VPN_SIZE] != cache_vpn[VPN_SIZE-1])) ? 1'b1 : 1'b0;
 assign tlb_hit = vm_enable && hit_cam && store_hit;
 assign tlb_miss = vm_enable && !(hit_cam && store_hit) && !bad_va;
 
