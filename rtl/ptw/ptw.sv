@@ -153,7 +153,7 @@ assign is_pte_leaf = pte.v && (pte.x || pte.w || pte.r);
 
 assign is_pte_ur = is_pte_leaf && pte.u && pte.r;
 assign is_pte_uw = is_pte_ur && pte.w;
-assign is_pte_ux = is_pte_leaf && pte.u && pte.x;
+assign is_pte_ux = pte.v && pte.x && pte.u;
 assign is_pte_sr = is_pte_leaf && pte.r && !pte.u;
 assign is_pte_sw = is_pte_sr && pte.w;
 assign is_pte_sx = pte.v && pte.x && !pte.u;
@@ -274,19 +274,30 @@ assign pte_cache_data = '0;  //Temporal
 `endif
 
 // Check permissons for set_dirty
-assign prv_req = ((r_req.prv == 2'b01) && csr_ptw_comm_i.mstatus.sum) ? 2'b0 : r_req.prv; 
+assign prv_req = r_req.prv; 
 
 always_comb begin
     if (prv_req[0]) begin //Supervisor
-        if (r_req.fetch) perm_ok = is_pte_sx;
-        else begin
-            if (r_req.store) perm_ok = is_pte_sw;
-            else perm_ok = is_pte_sr;
+        if (csr_ptw_comm_i.mstatus.sum) begin
+            if (r_req.fetch) perm_ok = is_pte_sx || is_pte_ux;
+            else begin
+                if (r_req.store) perm_ok = is_pte_sw || is_pte_uw;
+                else if (csr_ptw_comm_i.mstatus.mxr) perm_ok = is_pte_sr || is_pte_ur || is_pte_ux || is_pte_sx;
+                else perm_ok = is_pte_sr || is_pte_ur;
+            end
+        end else begin
+            if (r_req.fetch) perm_ok = is_pte_sx;
+            else begin
+                if (r_req.store) perm_ok = is_pte_sw;
+                else if (csr_ptw_comm_i.mstatus.mxr) perm_ok = is_pte_sr || is_pte_sx;
+                else perm_ok = is_pte_sr;
+            end
         end
     end else begin //User
         if (r_req.fetch) perm_ok = is_pte_ux;
         else begin
             if (r_req.store) perm_ok = is_pte_uw;
+            else if (csr_ptw_comm_i.mstatus.mxr) perm_ok = is_pte_ur || is_pte_ux;
             else perm_ok = is_pte_ur;
         end
     end

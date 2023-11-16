@@ -316,7 +316,7 @@ always_comb begin
     if (sv_priv_lvl) begin
         if (ptw_tlb_comm_i.ptw_status.sum) begin // if SUM bit is set, in SV we can read in readable user pages
             if (ptw_tlb_comm_i.ptw_status.mxr) begin // if MXR bit is set, executable pages can be also readed
-                read_ok = tlb_entries[hit_idx].perms.sr | tlb_entries[hit_idx].perms.ur | tlb_entries[hit_idx].perms.sx;
+                read_ok = tlb_entries[hit_idx].perms.sr | tlb_entries[hit_idx].perms.ur | tlb_entries[hit_idx].perms.sx | tlb_entries[hit_idx].perms.ux;
             end else begin
                 read_ok = tlb_entries[hit_idx].perms.sr | tlb_entries[hit_idx].perms.ur;
             end
