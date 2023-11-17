@@ -77,7 +77,7 @@ pte_t pte_wdata;
 logic [PAGE_LVL_BITS-1:0] vpn_req [LEVELS-1:0];
 logic [PAGE_LVL_BITS-1:0] vpn_idx;
 logic [SIZE_VADDR:0] pte_addr;
-logic invalid_paddr;
+logic invalid_pte;
 logic valid_pte;
 logic valid_pte_lvl [LEVELS-1:0];
 logic is_pte_leaf, is_pte_table;
@@ -146,7 +146,7 @@ endgenerate
 assign valid_pte_lvl[LEVELS-1] = dmem_ptw_comm_i.resp.data[0];
 assign pte.v = valid_pte_lvl[count_q];
 
-assign invalid_paddr = ((dmem_ptw_comm_i.resp.data >> (PPN_SIZE+10)) != '0) ? 1'b1 : 1'b0; //Make sure that N, PBMT and Reserved are 0
+assign invalid_pte = ((dmem_ptw_comm_i.resp.data >> (PPN_SIZE+10)) != '0) ? 1'b1 : 1'b0; //Make sure that N, PBMT and Reserved are 0
 
 assign is_pte_table = pte.v && !pte.x && !pte.w && !pte.r;
 assign is_pte_leaf = pte.v && (pte.x || pte.w || pte.r);
@@ -394,7 +394,9 @@ always_comb begin
             if (dmem_ptw_comm_i.resp.nack) begin
                 next_state = S_REQ;
             end else if (dmem_ptw_comm_i.resp.valid) begin
-                if (is_pte_table && (count_q < LEVELS-1)) begin
+                if (invalid_pte) begin
+                    next_state = S_ERROR;
+                end else if (is_pte_table && (count_q < LEVELS-1)) begin
                     count_d = count_q + 1'b1;
                     pmu_ptw_miss_o = 1'b1;
                     next_state = S_REQ;
