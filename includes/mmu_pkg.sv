@@ -175,6 +175,7 @@ typedef struct packed {
     logic [PPN_SIZE-1:0]    ppn;    // Physical page number.
     logic [1:0]             level;  // Page entry size: 2'b00 (1 GiB Page), 2'b01 (2 MiB Page), 2'b10 (4 KiB Page).
     logic                   dirty;  // The page entry is set as dirty.
+    logic                   access; // The page entry has been accessed.
     tlb_entry_permissions_t perms;  // TLB page entry permissions
     logic                   valid;  // The tlb entry is valid, set to 1 when the PTW sends a translation response without errors.
     logic                   nempty; // The tlb entry is not empty, when the PTW sends a translation response that we don't have to ignore, it is set to 1.

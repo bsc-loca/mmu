@@ -66,6 +66,7 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
             tlb_entries[write_idx].ppn <= ptw_tlb_comm_i.resp.pte.ppn;
             tlb_entries[write_idx].level <= ptw_tlb_comm_i.resp.level;
             tlb_entries[write_idx].dirty <= ptw_tlb_comm_i.resp.pte.d;
+            tlb_entries[write_idx].access <= ptw_tlb_comm_i.resp.pte.a;
             tlb_entries[write_idx].perms.ur <= ptw_tlb_comm_i.resp.pte.r & ptw_tlb_comm_i.resp.pte.u & ptw_tlb_comm_i.resp.pte.v; // this is slightly different
             tlb_entries[write_idx].perms.uw <= ptw_tlb_comm_i.resp.pte.w & ptw_tlb_comm_i.resp.pte.u & ptw_tlb_comm_i.resp.pte.v;
             tlb_entries[write_idx].perms.ux <= ptw_tlb_comm_i.resp.pte.x & ptw_tlb_comm_i.resp.pte.u & ptw_tlb_comm_i.resp.pte.v;
@@ -118,15 +119,18 @@ end
 // HIT LOGIC
 ///////////////////////////////
 
-logic tlb_hit, tlb_miss, store_hit, vm_enable, passthrough;
+logic tlb_hit, tlb_miss, store_hit, vm_enable, tlb_entry_access_is_zero, tlb_entry_dirty_is_zero, passthrough;
 
 logic read_ok, write_ok, exec_ok, sv_priv_lvl; // value chagned by permission checking logic
 
 assign vm_enable = cache_tlb_comm_i.vm_enable;
 assign passthrough = cache_tlb_comm_i.req.passthrough;
 
+assign tlb_entry_access_is_zero = !tlb_entries[hit_idx].access && tlb_entries[hit_idx].valid;
+assign tlb_entry_dirty_is_zero = !store_hit && tlb_entries[hit_idx].valid;
+
 assign tlb_hit = vm_enable && hit_cam && store_hit;
-assign tlb_miss = vm_enable && !(hit_cam && store_hit);
+assign tlb_miss = vm_enable && !(hit_cam);
 
 // This logic solves the problem of a store hitting in TLB a page not marked as dirty
 always_comb begin
@@ -352,9 +356,9 @@ end
 assign exec_ok = (sv_priv_lvl) ? tlb_entries[hit_idx].perms.sx : tlb_entries[hit_idx].perms.ux;
 
 logic xcpt_if, xcpt_st, xcpt_ld;
-assign xcpt_if = (tlb_hit && !exec_ok) ? 1'b1 : 1'b0;
-assign xcpt_st = (tlb_hit && !write_ok) ? 1'b1 : 1'b0;
-assign xcpt_ld = (tlb_hit && !read_ok) ? 1'b1 : 1'b0;
+assign xcpt_if = ((tlb_hit && !exec_ok) || tlb_entry_access_is_zero) ? 1'b1 : 1'b0;
+assign xcpt_st = ((tlb_hit && !write_ok) || tlb_entry_access_is_zero || tlb_entry_dirty_is_zero) ? 1'b1 : 1'b0;
+assign xcpt_ld = ((tlb_hit && !read_ok) || tlb_entry_access_is_zero) ? 1'b1 : 1'b0;
 
 // PPN ASSIGNAMENT
 ///////////////////////////////

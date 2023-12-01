@@ -54,8 +54,8 @@ typedef enum logic [2:0] {
     S_READY,
     S_REQ,
     S_WAIT,
-    S_SET_DIRTY,
-    S_WAIT_DIRTY,
+    //S_SET_DIRTY,
+    //S_WAIT_DIRTY,
     S_DONE,
     S_ERROR
 } ptw_state;
@@ -86,7 +86,7 @@ logic is_pte_sr, is_pte_sw, is_pte_sx;
 
 logic [1:0] prv_req;
 logic perm_ok;
-logic set_dirty_bit;
+//logic set_dirty_bit;
 
 logic resp_err, resp_val;
 logic [63:0] r_resp_ppn;
@@ -172,7 +172,7 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
         r_req <= '0;
         r_pte <= '0;
     end else begin
-        if ((current_state == S_WAIT) && dmem_ptw_comm_i.resp.valid && !set_dirty_bit) begin
+        if ((current_state == S_WAIT) && dmem_ptw_comm_i.resp.valid) begin
             r_pte <= pte;
         end else if ((current_state == S_REQ) && pte_cache_hit && (count_q < LEVELS-1)) begin
             r_pte.ppn <= pte_cache_data; 
@@ -304,17 +304,18 @@ always_comb begin
 end
 
 // Set_Dirty managment
-assign set_dirty_bit = perm_ok && (!pte.a || (r_req.store && !pte.d));
+//assign set_dirty_bit = perm_ok && (!pte.a || (r_req.store && !pte.d));
 
 // dmem Request
 always_comb begin
     pte_wdata = '0;
     pte_wdata.a = 1'b1;
-    pte_wdata.d = r_req.store;
+    //pte_wdata.d = r_req.store;
 end
 //assign ptw_dmem_comm_o.req.valid = ((current_state == S_REQ) || (current_state == S_SET_DIRTY));
 assign ptw_dmem_comm_o.req.phys = 1'b1;
-assign ptw_dmem_comm_o.req.cmd = (current_state == S_SET_DIRTY) ? M_XA_OR : M_XRD;
+//assign ptw_dmem_comm_o.req.cmd = (current_state == S_SET_DIRTY) ? M_XA_OR : M_XRD;
+assign ptw_dmem_comm_o.req.cmd = M_XRD;
 assign ptw_dmem_comm_o.req.typ = MT_D;
 assign ptw_dmem_comm_o.req.addr = pte_addr;
 assign ptw_dmem_comm_o.req.kill = 1'b0;
@@ -412,7 +413,8 @@ always_comb begin
                     pmu_ptw_miss_o = 1'b1;
                     next_state = S_REQ;
                 end else if (is_pte_leaf) begin
-                    next_state = (set_dirty_bit) ? S_SET_DIRTY : S_DONE;
+                    //next_state = (set_dirty_bit) ? S_SET_DIRTY : S_DONE;
+                    next_state = S_DONE;
                 end 
                 else begin
                     next_state = S_ERROR;
@@ -422,7 +424,7 @@ always_comb begin
                 next_state = S_WAIT;
             end
         end
-        S_SET_DIRTY : begin
+        /*S_SET_DIRTY : begin
             ptw_dmem_comm_o.req.valid = 1'b1;
             if (dmem_ptw_comm_i.dmem_ready) next_state = S_WAIT_DIRTY;
             else next_state = S_SET_DIRTY;
@@ -435,7 +437,7 @@ always_comb begin
             end else begin
                 next_state = S_WAIT_DIRTY;
             end
-        end
+        end*/
         S_DONE : begin
             next_state = S_READY;
         end
