@@ -108,7 +108,7 @@ typedef struct packed {
 
 // TLB-Cache response
 typedef struct packed { 
-    logic                miss;      // If the translation request missed set to 1, otherwise the rest of the signals have valid information of the response.
+    logic                miss;      // If the translation request missed set to 1 Otherwise, the rest of the signals have valid information of the response.
     logic [PPN_SIZE-1:0] ppn;       // Physical page number.
     tlb_ex_t             xcpt;      // Exceptions produced by the requests.
     logic [7:0]          hit_idx;   // CAM hit index of the translation request.
