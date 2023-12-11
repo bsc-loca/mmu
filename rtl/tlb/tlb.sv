@@ -24,20 +24,20 @@ module tlb
 import mmu_pkg::*;
 #(
 )(
-    input logic clk_i,
-    input logic rstn_i,
+    input logic clk_i,                          // System clock signal.
+    input logic rstn_i,                         // System reset signal (active low).
 
     // TLB request-response
-    input cache_tlb_comm_t cache_tlb_comm_i,
-    output tlb_cache_comm_t tlb_cache_comm_o,
+    input cache_tlb_comm_t cache_tlb_comm_i,    // Communication from translation requester to TLB.
+    output tlb_cache_comm_t tlb_cache_comm_o,   // Communication from TLB to translation requester.
 
     // PTW request-respone
-    input ptw_tlb_comm_t ptw_tlb_comm_i,
-    output tlb_ptw_comm_t tlb_ptw_comm_o,
+    input ptw_tlb_comm_t ptw_tlb_comm_i,        // Communication from TLB to PTW.
+    output tlb_ptw_comm_t tlb_ptw_comm_o,       // Communication from to PTW to TLB.
 
     // PMU counter events
-    output logic pmu_tlb_access_o,
-    output logic pmu_tlb_miss_o
+    output logic pmu_tlb_access_o,              // Accepted Translation request to TLB. 
+    output logic pmu_tlb_miss_o                 // Accepted Translation request to TLB misses. 
 );
 
 tlb_entry_t [TLB_ENTRIES-1:0] tlb_entries;
