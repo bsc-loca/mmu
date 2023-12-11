@@ -86,7 +86,7 @@ typedef struct packed {
 
 // Cache-TLB request
 typedef struct packed {
-    logic                 valid;        // Translation rquest valid.
+    logic                 valid;        // Translation request valid.
     logic [ASID_SIZE-1:0] asid;         // Address space identifier.
     logic [VPN_SIZE:0]    vpn;          // Virtual page number.
     logic                 passthrough;  // Virtual address directly corresponds to physical address, for direct assignment between a virtual machine and the physical device.

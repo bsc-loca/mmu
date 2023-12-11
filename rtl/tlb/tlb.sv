@@ -31,7 +31,7 @@ import mmu_pkg::*;
     input cache_tlb_comm_t cache_tlb_comm_i,    // Communication from translation requester to TLB.
     output tlb_cache_comm_t tlb_cache_comm_o,   // Communication from TLB to translation requester.
 
-    // PTW request-respone
+    // PTW request-response
     input ptw_tlb_comm_t ptw_tlb_comm_i,        // Communication from TLB to PTW.
     output tlb_ptw_comm_t tlb_ptw_comm_o,       // Communication from to PTW to TLB.
 
