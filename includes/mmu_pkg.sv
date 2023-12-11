@@ -144,7 +144,7 @@ typedef struct packed {
     logic                      valid; // Translation response valid.
     logic                      error; // An error has ocurred with the translation request. Only check if the response is valid.
     pte_t                      pte;   // Page table entry.
-    logic [$clog2(LEVELS)-1:0] level; // Privilege level of the translation.
+    logic [$clog2(LEVELS)-1:0] level; // Page entry size: 2'b00 (1 GiB Page), 2'b01 (2 MiB Page), 2'b10 (4 KiB Page). 
 } ptw_tlb_resp_t;                     // PTW response to TLB translation request.
 
 typedef struct packed {
