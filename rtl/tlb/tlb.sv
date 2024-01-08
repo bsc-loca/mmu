@@ -52,7 +52,7 @@ logic [TLB_IDX_SIZE-1:0] write_idx;
 assign write_idx = tlb_req_tmp.write_idx; // stored write_idx with the eviction idx (calculated in the first cycle of the req)
 always_ff @(posedge clk_i, negedge rstn_i) begin
     if(~rstn_i) begin
-		for (int i=0; i<TLB_ENTRIES; ++i) begin
+        for (int i=0; i<TLB_ENTRIES; ++i) begin
             tlb_entries[i] <= '0;
         end
     end else begin
@@ -107,13 +107,13 @@ assign hit_cam = |hits_cam;
 
 // encodes the hit index
 always_comb begin
-	hit_idx = '0; // don't care if no 'in' bits set
-	for (int i = 0; i < TLB_ENTRIES; i++) begin
-		if (hits_cam[i]==1'b1) begin
-			hit_idx = i;
+    hit_idx = '0; // don't care if no 'in' bits set
+    for (int i = 0; i < TLB_ENTRIES; i++) begin
+        if (hits_cam[i]==1'b1) begin
+            hit_idx = i;
             break;
-		end
-	end
+        end
+    end
 end
 
 // HIT LOGIC
@@ -167,9 +167,9 @@ pseudoLRU #(.ENTRIES(TLB_ENTRIES)) tlb_PLRU (
 // RANDOM EVICTION
 always_ff @(posedge clk_i, negedge rstn_i) begin
     if(~rstn_i) begin
-		random_eviction_idx <= '0;
+        random_eviction_idx <= '0;
     end else begin
-		random_eviction_idx <= random_eviction_idx + 1'b1;
+        random_eviction_idx <= random_eviction_idx + 1'b1;
     end
 end
 */
@@ -179,8 +179,8 @@ always_comb begin
     invalid_idx = '0;
     has_invalid_entry = ~tlb_entries[invalid_idx].nempty;
     while (!has_invalid_entry && invalid_idx != (TLB_ENTRIES-1)) begin
-      invalid_idx += 1'b1;
-      has_invalid_entry = ~tlb_entries[invalid_idx].nempty;
+        invalid_idx += 1'b1;
+        has_invalid_entry = ~tlb_entries[invalid_idx].nempty;
     end
 end
 
@@ -356,9 +356,9 @@ end
 assign exec_ok = (sv_priv_lvl) ? tlb_entries[hit_idx].perms.sx : tlb_entries[hit_idx].perms.ux;
 
 logic xcpt_if, xcpt_st, xcpt_ld;
-assign xcpt_if = ((tlb_hit && !exec_ok) || tlb_entry_access_is_zero) ? 1'b1 : 1'b0;
-assign xcpt_st = ((tlb_hit && !write_ok) || tlb_entry_access_is_zero || tlb_entry_dirty_is_zero) ? 1'b1 : 1'b0;
-assign xcpt_ld = ((tlb_hit && !read_ok) || tlb_entry_access_is_zero) ? 1'b1 : 1'b0;
+assign xcpt_if = (vm_enable && ((tlb_hit && !exec_ok) || tlb_entry_access_is_zero)) ? 1'b1 : 1'b0;
+assign xcpt_st = (vm_enable && ((tlb_hit && !write_ok) || tlb_entry_access_is_zero || tlb_entry_dirty_is_zero)) ? 1'b1 : 1'b0;
+assign xcpt_ld = (vm_enable && ((tlb_hit && !read_ok) || tlb_entry_access_is_zero)) ? 1'b1 : 1'b0;
 
 // PPN ASSIGNAMENT
 ///////////////////////////////
