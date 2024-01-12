@@ -118,16 +118,15 @@ end
 // HIT LOGIC
 ///////////////////////////////
 
-logic bad_va, tlb_hit, tlb_miss, store_hit, vm_enable, passthrough;
+logic tlb_hit, tlb_miss, store_hit, vm_enable, passthrough;
 
 logic read_ok, write_ok, exec_ok, sv_priv_lvl; // value chagned by permission checking logic
 
 assign vm_enable = cache_tlb_comm_i.vm_enable;
 assign passthrough = cache_tlb_comm_i.req.passthrough;
 
-assign bad_va = (vm_enable && (cache_vpn[VPN_SIZE] != cache_vpn[VPN_SIZE-1])) ? 1'b1 : 1'b0;
 assign tlb_hit = vm_enable && hit_cam && store_hit;
-assign tlb_miss = vm_enable && !(hit_cam && store_hit) && !bad_va;
+assign tlb_miss = vm_enable && !(hit_cam && store_hit);
 
 // This logic solves the problem of a store hitting in TLB a page not marked as dirty
 always_comb begin
@@ -353,9 +352,9 @@ end
 assign exec_ok = (sv_priv_lvl) ? tlb_entries[hit_idx].perms.sx : tlb_entries[hit_idx].perms.ux;
 
 logic xcpt_if, xcpt_st, xcpt_ld;
-assign xcpt_if = (bad_va || (tlb_hit && !exec_ok)) ? 1'b1 : 1'b0;
-assign xcpt_st = (bad_va || (tlb_hit && !write_ok)) ? 1'b1 : 1'b0;
-assign xcpt_ld = (bad_va || (tlb_hit && !read_ok)) ? 1'b1 : 1'b0;
+assign xcpt_if = (tlb_hit && !exec_ok) ? 1'b1 : 1'b0;
+assign xcpt_st = (tlb_hit && !write_ok) ? 1'b1 : 1'b0;
+assign xcpt_ld = (tlb_hit && !read_ok) ? 1'b1 : 1'b0;
 
 // PPN ASSIGNAMENT
 ///////////////////////////////
