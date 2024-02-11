@@ -338,7 +338,7 @@ assign resp_val = (current_state == S_DONE) || resp_err;
 assign r_resp_ppn = 64'(unsigned'(pte_addr[SIZE_VADDR-1:12])); // pte_addr >> 12
 genvar j;
 generate
-    for (j = 0; j < LEVELS-1; j++) begin
+    for (j = 0; j < (LEVELS-1); j++) begin
         logic [63:0] aux_resp_ppn_lvl;
         assign aux_resp_ppn_lvl = 64'(unsigned'({r_resp_ppn[63:(LEVELS-j-1)*PAGE_LVL_BITS], r_req.vpn[PAGE_LVL_BITS*(LEVELS-j-1)-1:0]}));
         assign resp_ppn_lvl[j] = aux_resp_ppn_lvl[PPN_SIZE-1:0];
@@ -391,7 +391,7 @@ always_comb begin
         end
         S_REQ : begin
             ptw_dmem_comm_o.req.valid = 1'b1;
-            if (pte_cache_hit && (count_q < LEVELS-1)) begin
+            if (pte_cache_hit && (count_q < (LEVELS-1))) begin
                 ptw_dmem_comm_o.req.valid = 1'b0;
                 pmu_ptw_hit_o = 1'b1;
                 count_d = count_q + 1'b1;
@@ -408,7 +408,7 @@ always_comb begin
             end else if (dmem_ptw_comm_i.resp.valid) begin
                 if (invalid_pte) begin
                     next_state = S_ERROR;
-                end else if (is_pte_table && (count_q < LEVELS-1)) begin
+                end else if (is_pte_table && (count_q < (LEVELS-1))) begin
                     count_d = count_q + 1'b1;
                     pmu_ptw_miss_o = 1'b1;
                     next_state = S_REQ;

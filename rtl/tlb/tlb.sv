@@ -372,7 +372,7 @@ logic [PPN_SIZE-1:0] ppn_k, ppn_m, ppn_g, ppn;
 
 assign ppn_k = tlb_entries[hit_idx].ppn;
 assign ppn_m = {tlb_entries[hit_idx].ppn >> PAGE_LVL_BITS, cache_vpn[PAGE_LVL_BITS-1:0]};
-assign ppn_g = {tlb_entries[hit_idx].ppn >> PAGE_LVL_BITS * 2, cache_vpn[PAGE_LVL_BITS*2-1:0]};
+assign ppn_g = {tlb_entries[hit_idx].ppn >> (PAGE_LVL_BITS * 2), cache_vpn[PAGE_LVL_BITS*2-1:0]};
 
 /*always_comb begin
     if(vm_enable && !passthrough) begin
