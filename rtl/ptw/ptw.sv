@@ -54,14 +54,13 @@ typedef enum logic [2:0] {
     S_READY,
     S_REQ,
     S_WAIT,
-    //S_SET_DIRTY,
-    //S_WAIT_DIRTY,
     S_DONE,
     S_ERROR
 } ptw_state;
 
 // Signal declaration
 logic [$clog2(LEVELS)-1:0] count_d, count_q;
+logic [$clog2(LEVELS):0] count;
 
 ptw_tlb_comm_t ptw_tlb_comm; 
 tlb_ptw_comm_t tlb_ptw_comm; 
@@ -78,7 +77,6 @@ logic [PAGE_LVL_BITS-1:0] vpn_req [LEVELS-1:0];
 logic [PAGE_LVL_BITS-1:0] vpn_idx;
 logic [SIZE_VADDR:0] pte_addr;
 logic invalid_pte;
-logic valid_pte;
 logic valid_pte_lvl [LEVELS-1:0];
 logic is_pte_leaf, is_pte_table;
 logic is_pte_ur, is_pte_uw, is_pte_ux;
@@ -86,7 +84,6 @@ logic is_pte_sr, is_pte_sw, is_pte_sx;
 
 logic [1:0] prv_req;
 logic perm_ok;
-//logic set_dirty_bit;
 
 logic resp_err, resp_val;
 logic [63:0] r_resp_ppn;
@@ -110,12 +107,12 @@ ptw_arb ptw_arb_inst(
 );
 
 // VPN indexation depending on the page level
-genvar i;
+genvar lvl;
 generate
-    for (i = 0; i < LEVELS; i++) begin
+    for (lvl = 0; lvl < LEVELS; lvl++) begin
         logic [VPN_SIZE-1:0] aux_vpn_req;
-        assign aux_vpn_req = (r_req.vpn >> (LEVELS-i-1)*PAGE_LVL_BITS);
-        assign vpn_req[i] = aux_vpn_req[PAGE_LVL_BITS-1:0];
+        assign aux_vpn_req = (r_req.vpn >> (LEVELS-lvl-1)*PAGE_LVL_BITS);
+        assign vpn_req[lvl] = aux_vpn_req[PAGE_LVL_BITS-1:0];
     end
 endgenerate
 assign vpn_idx = vpn_req[count_q];
@@ -133,7 +130,7 @@ assign pte.r = dmem_ptw_comm_i.resp.data[1];
 
 genvar c;
 generate
-    for (c = 0; c < LEVELS-1; c++) begin
+    for (c = 0; c < (LEVELS-1); c++) begin
         always_comb begin
             if (pte.r || pte.w || pte.x) begin
                 valid_pte_lvl[c] = (pte.ppn[(LEVELS-c-1)*PAGE_LVL_BITS-1:0] == '0) ? dmem_ptw_comm_i.resp.data[0] : 1'b0; //Make sure PPN LSB are 0
@@ -245,25 +242,29 @@ assign full_cache =& valid_vector; //And Reduction
 assign pte_cache_hit =| hit_vector; //Or Reduction
 
 //Find hit index and data of the data[hit_idx]
+bit found;
 always_comb begin
     hit_idx = '0;
     pte_cache_data = '0;
-    for (int i = 0; i < PTW_CACHE_SIZE; i++) begin
+    found = 0; // Control variable
+    for (int i = 0; (i < PTW_CACHE_SIZE) && (!found); i++) begin
         if (hit_vector[i]) begin
             hit_idx = i;
             pte_cache_data = ptecache_entry[i].data;
-            break;
+            found = 1;
         end
     end
 end
 
 //Priority Encoder
+bit found2;
 always_comb begin
     priorityEncoder_idx = '0;
-    for (int i = 0; i < PTW_CACHE_SIZE; i++) begin
+    found2 = 0;
+    for (int i = 0; (i < PTW_CACHE_SIZE) && (!found2); i++) begin
         if (!valid_vector[i]) begin
             priorityEncoder_idx = i;
-            break;
+            found = 1;
         end
     end
 end
@@ -303,18 +304,13 @@ always_comb begin
     end
 end
 
-// Set_Dirty managment
-//assign set_dirty_bit = perm_ok && (!pte.a || (r_req.store && !pte.d));
-
 // dmem Request
 always_comb begin
     pte_wdata = '0;
     pte_wdata.a = 1'b1;
-    //pte_wdata.d = r_req.store;
 end
-//assign ptw_dmem_comm_o.req.valid = ((current_state == S_REQ) || (current_state == S_SET_DIRTY));
+
 assign ptw_dmem_comm_o.req.phys = 1'b1;
-//assign ptw_dmem_comm_o.req.cmd = (current_state == S_SET_DIRTY) ? M_XA_OR : M_XRD;
 assign ptw_dmem_comm_o.req.cmd = M_XRD;
 assign ptw_dmem_comm_o.req.typ = MT_D;
 assign ptw_dmem_comm_o.req.addr = pte_addr;
@@ -379,6 +375,7 @@ end
 
 always_comb begin
     count_d = count_q;
+    count = count_q + 1'b1;
     pmu_ptw_hit_o = 1'b0;
     pmu_ptw_miss_o = 1'b0;
     ptw_dmem_comm_o.req.valid = 1'b0;
@@ -394,7 +391,7 @@ always_comb begin
             if (pte_cache_hit && (count_q < (LEVELS-1))) begin
                 ptw_dmem_comm_o.req.valid = 1'b0;
                 pmu_ptw_hit_o = 1'b1;
-                count_d = count_q + 1'b1;
+                count_d = count[1:0];
                 next_state = S_REQ;
             end else if (dmem_ptw_comm_i.dmem_ready) begin
                 next_state = S_WAIT;
@@ -409,11 +406,10 @@ always_comb begin
                 if (invalid_pte) begin
                     next_state = S_ERROR;
                 end else if (is_pte_table && (count_q < (LEVELS-1))) begin
-                    count_d = count_q + 1'b1;
+                    count_d = count[1:0];
                     pmu_ptw_miss_o = 1'b1;
                     next_state = S_REQ;
                 end else if (is_pte_leaf) begin
-                    //next_state = (set_dirty_bit) ? S_SET_DIRTY : S_DONE;
                     next_state = S_DONE;
                 end 
                 else begin
@@ -424,20 +420,6 @@ always_comb begin
                 next_state = S_WAIT;
             end
         end
-        /*S_SET_DIRTY : begin
-            ptw_dmem_comm_o.req.valid = 1'b1;
-            if (dmem_ptw_comm_i.dmem_ready) next_state = S_WAIT_DIRTY;
-            else next_state = S_SET_DIRTY;
-        end
-        S_WAIT_DIRTY : begin
-            if (dmem_ptw_comm_i.resp.nack) begin
-                next_state = S_SET_DIRTY;
-            end else if (dmem_ptw_comm_i.resp.valid) begin
-                next_state = S_REQ;
-            end else begin
-                next_state = S_WAIT_DIRTY;
-            end
-        end*/
         S_DONE : begin
             next_state = S_READY;
         end

@@ -106,12 +106,14 @@ assign hit_g = |hits_g;
 assign hit_cam = |hits_cam;
 
 // encodes the hit index
+bit found;
 always_comb begin
     hit_idx = '0; // don't care if no 'in' bits set
-    for (int i = 0; i < TLB_ENTRIES; i++) begin
+    found = 0;
+    for (int i = 0; (i < TLB_ENTRIES) && (!found); i++) begin
         if (hits_cam[i]==1'b1) begin
             hit_idx = i;
-            break;
+            found = 1;
         end
     end
 end
@@ -161,18 +163,6 @@ pseudoLRU #(.ENTRIES(TLB_ENTRIES)) tlb_PLRU (
     .access_idx_i(hit_idx),
     .replacement_idx_o(plru_eviction_idx)
 );
-
-
-/* 
-// RANDOM EVICTION
-always_ff @(posedge clk_i, negedge rstn_i) begin
-    if(~rstn_i) begin
-        random_eviction_idx <= '0;
-    end else begin
-        random_eviction_idx <= random_eviction_idx + 1'b1;
-    end
-end
-*/
 
 // Detect and identify if and entry is not being used
 always_comb begin
@@ -374,23 +364,6 @@ assign ppn_k = tlb_entries[hit_idx].ppn;
 assign ppn_m = {tlb_entries[hit_idx].ppn >> PAGE_LVL_BITS, cache_vpn[PAGE_LVL_BITS-1:0]};
 assign ppn_g = {tlb_entries[hit_idx].ppn >> (PAGE_LVL_BITS * 2), cache_vpn[PAGE_LVL_BITS*2-1:0]};
 
-/*always_comb begin
-    if(vm_enable && !passthrough) begin
-        if (hit_k) begin
-            ppn = ppn_k;
-        end else if (hit_m) begin
-            ppn = ppn_m;
-        end else if (hit_g) begin
-            ppn = ppn_g;
-        end else begin
-            ppn = '0;
-        end
-    end else begin 
-        ppn[PPN_SIZE-1:VPN_SIZE] = '0;
-        ppn[VPN_SIZE-1:0] = cache_vpn;
-    end
-end*/
-
 // TLB RESPONSE
 ///////////////////////////////
 
@@ -398,7 +371,7 @@ assign tlb_cache_comm_o.tlb_ready = tlb_ready;
 assign tlb_cache_comm_o.resp.miss = tlb_miss;
 assign tlb_cache_comm_o.resp.ppn =
     ((ppn_k & {PPN_SIZE{hit_k & vm_enable & ~passthrough}}) | (ppn_m & {PPN_SIZE{hit_m & vm_enable & ~passthrough}})) |
-    ((ppn_g & {PPN_SIZE{hit_g & vm_enable & ~passthrough}}) | {{PPN_SIZE-VPN_SIZE{1'b0}}, cache_vpn & {PPN_SIZE{~(vm_enable & ~passthrough)}}});
+    ((ppn_g & {PPN_SIZE{hit_g & vm_enable & ~passthrough}}) | {{(PPN_SIZE-VPN_SIZE-1){1'b0}}, cache_vpn & {(VPN_SIZE+1){~(vm_enable & ~passthrough)}}});
 assign tlb_cache_comm_o.resp.xcpt.load = xcpt_ld;
 assign tlb_cache_comm_o.resp.xcpt.store = xcpt_st;
 assign tlb_cache_comm_o.resp.xcpt.fetch = xcpt_if;

@@ -31,36 +31,40 @@ module pseudoLRU #(
 
 // Decode access_idx
 logic [ENTRIES-1:0] access_array;
+bit found;
 always_comb begin
-	access_array = '0; // don't care if no 'in' bits set
-	for (int i = 0; i < ENTRIES; i++) begin
-		if (i == access_idx_i) begin
-			access_array[i] = 1'b1;
-            break;
-		end
-	end
+    access_array = '0; // don't care if no 'in' bits set
+    found = 0;
+    for (int i = 0; (i < ENTRIES) && (!found); i++) begin
+        if (i == access_idx_i) begin
+            access_array[i] = 1'b1;
+            found = 1;
+        end
+    end
 end
 
 // Encode replace_en
 logic [ENTRIES-1:0] replace_en;
 logic [$clog2(ENTRIES)-1:0] replacement_idx;
+bit found2;
 always_comb begin
-	replacement_idx = '0; // don't care if no 'in' bits set
-	for (int i = 0; i < ENTRIES; i++) begin
-		if (replace_en[i] == 1'b1) begin
-			replacement_idx = i;
-            break;
-		end
-	end
+    replacement_idx = '0; // don't care if no 'in' bits set
+    found2 = 0;
+    for (int i = 0; (i < ENTRIES) && (!found2); i++) begin
+        if (replace_en[i] == 1'b1) begin
+            replacement_idx = i;
+            found2 = 1;
+        end
+    end
 end
 assign replacement_idx_o = replacement_idx;
 
 // -----------------------------------------------
 // PLRU - Pseudo Least Recently Used Replacement
 // -----------------------------------------------
-logic [2*(ENTRIES-1)-1:0] plru_tree_q, plru_tree_n;
+logic [2*(ENTRIES-1)-1:0] plru_tree_q, plru_tree_d;
 always_comb begin : plru_replacement
-    plru_tree_n = plru_tree_q;
+    plru_tree_d = plru_tree_q;
     // The PLRU-tree indexing:
     // lvl0        0
     //            / \
@@ -74,28 +78,30 @@ always_comb begin : plru_replacement
     // E.g. for a TLB with 8 entries, the for-loop is semantically
     // equivalent to the following pseudo-code:
     // unique case (1'b1)
-    // lu_hit[7]: plru_tree_n[0, 2, 6] = {1, 1, 1};
-    // lu_hit[6]: plru_tree_n[0, 2, 6] = {1, 1, 0};
-    // lu_hit[5]: plru_tree_n[0, 2, 5] = {1, 0, 1};
-    // lu_hit[4]: plru_tree_n[0, 2, 5] = {1, 0, 0};
-    // lu_hit[3]: plru_tree_n[0, 1, 4] = {0, 1, 1};
-    // lu_hit[2]: plru_tree_n[0, 1, 4] = {0, 1, 0};
-    // lu_hit[1]: plru_tree_n[0, 1, 3] = {0, 0, 1};
-    // lu_hit[0]: plru_tree_n[0, 1, 3] = {0, 0, 0};
+    // lu_hit[7]: plru_tree_d[0, 2, 6] = {1, 1, 1};
+    // lu_hit[6]: plru_tree_d[0, 2, 6] = {1, 1, 0};
+    // lu_hit[5]: plru_tree_d[0, 2, 5] = {1, 0, 1};
+    // lu_hit[4]: plru_tree_d[0, 2, 5] = {1, 0, 0};
+    // lu_hit[3]: plru_tree_d[0, 1, 4] = {0, 1, 1};
+    // lu_hit[2]: plru_tree_d[0, 1, 4] = {0, 1, 0};
+    // lu_hit[1]: plru_tree_d[0, 1, 3] = {0, 0, 1};
+    // lu_hit[0]: plru_tree_d[0, 1, 3] = {0, 0, 0};
     // default: begin /* No hit */ end
     // endcase
-    for (int unsigned i = 0; i < ENTRIES; i++) begin
-        automatic int unsigned idx_base, shift, new_index;
+    for (int i = 0; i < ENTRIES; i++) begin
+        automatic int idx_base = 0;
+        automatic int shift = 0;
+        automatic int new_index = 0;
         // we got a hit so update the pointer as it was least recently used
         if (access_array[i] & access_hit_i) begin
             // Set the nodes to the values we would expect
-            for (int unsigned lvl = 0; lvl < $clog2(ENTRIES); lvl++) begin
+            for (int lvl = 0; lvl < $clog2(ENTRIES); lvl++) begin
                 idx_base = $unsigned((2**lvl)-1);
                 // lvl0 <=> MSB, lvl1 <=> MSB-1, ...
                 shift = $clog2(ENTRIES) - lvl;
                 // to circumvent the 32 bit integer arithmetic assignment
                 new_index =  ~((i >> (shift-1)) & 32'b1);
-                plru_tree_n[idx_base + (i >> shift)] = new_index[0];
+                plru_tree_d[idx_base + (i >> shift)] = new_index & 1'b1;
             end
         end
     end
@@ -124,7 +130,7 @@ always_comb begin : plru_replacement
 
             // en &= plru_tree_q[idx_base + (i>>shift)] == ((i >> (shift-1)) & 1'b1);
             new_index =  (i >> (shift-1)) & 32'b1;
-            if (new_index[0]) begin
+            if (new_index & 1'b1) begin
                 en &= plru_tree_q[idx_base + (i>>shift)];
             end else begin
                 en &= ~plru_tree_q[idx_base + (i>>shift)];
@@ -139,7 +145,7 @@ always_ff @(posedge clk_i or negedge rstn_i) begin
     if (!rstn_i) begin
         plru_tree_q <= '0;
     end else begin
-        plru_tree_q <= plru_tree_n;
+        plru_tree_q <= plru_tree_d;
     end
 end
 
