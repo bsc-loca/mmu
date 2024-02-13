@@ -264,7 +264,7 @@ always_comb begin
     for (int i = 0; (i < PTW_CACHE_SIZE) && (!found2); i++) begin
         if (!valid_vector[i]) begin
             priorityEncoder_idx = i;
-            found = 1;
+            found2 = 1;
         end
     end
 end
