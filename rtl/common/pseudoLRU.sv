@@ -31,7 +31,12 @@ module pseudoLRU #(
 
 // Decode access_idx
 logic [ENTRIES-1:0] access_array;
-bit found;
+logic found;
+logic found2;
+
+logic [ENTRIES-1:0] replace_en;
+logic [$clog2(ENTRIES)-1:0] iter;
+
 always_comb begin
     access_array = '0; // don't care if no 'in' bits set
     found = 0;
@@ -43,21 +48,6 @@ always_comb begin
     end
 end
 
-// Encode replace_en
-logic [ENTRIES-1:0] replace_en;
-logic [$clog2(ENTRIES)-1:0] replacement_idx;
-bit found2;
-always_comb begin
-    replacement_idx = '0; // don't care if no 'in' bits set
-    found2 = 0;
-    for (int i = 0; (i < ENTRIES) && (!found2); i++) begin
-        if (replace_en[i] == 1'b1) begin
-            replacement_idx = i;
-            found2 = 1;
-        end
-    end
-end
-assign replacement_idx_o = replacement_idx;
 
 // -----------------------------------------------
 // PLRU - Pseudo Least Recently Used Replacement
@@ -89,11 +79,12 @@ always_comb begin : plru_replacement
     // default: begin /* No hit */ end
     // endcase
     for (int i = 0; i < ENTRIES; i++) begin
-        automatic int idx_base = 0;
-        automatic int shift = 0;
-        automatic int new_index = 0;
+        automatic logic [31:0] new_index;
         // we got a hit so update the pointer as it was least recently used
         if (access_array[i] & access_hit_i) begin
+            automatic int idx_base = 0;
+            automatic int shift = 0;
+            new_index = '0;
             // Set the nodes to the values we would expect
             for (int lvl = 0; lvl < $clog2(ENTRIES); lvl++) begin
                 idx_base = $unsigned((2**lvl)-1);
@@ -101,8 +92,11 @@ always_comb begin : plru_replacement
                 shift = $clog2(ENTRIES) - lvl;
                 // to circumvent the 32 bit integer arithmetic assignment
                 new_index =  ~((i >> (shift-1)) & 32'b1);
-                plru_tree_d[idx_base + (i >> shift)] = new_index & 1'b1;
+                plru_tree_d[idx_base + (i >> shift)] = new_index[0];
             end
+        end
+        else begin
+            new_index = '0;
         end
     end
     // Decode tree to write enable signals
@@ -121,7 +115,8 @@ always_comb begin : plru_replacement
     // the next entry to replace.
     for (int unsigned i = 0; i < ENTRIES; i += 1) begin
         automatic logic en;
-        automatic int unsigned idx_base, shift, new_index;
+        automatic logic [31:0] new_index2;
+        automatic int unsigned idx_base, shift;
         en = 1'b1;
         for (int unsigned lvl = 0; lvl < $clog2(ENTRIES); lvl++) begin
             idx_base = $unsigned((2**lvl)-1);
@@ -129,8 +124,8 @@ always_comb begin : plru_replacement
             shift = $clog2(ENTRIES) - lvl;
 
             // en &= plru_tree_q[idx_base + (i>>shift)] == ((i >> (shift-1)) & 1'b1);
-            new_index =  (i >> (shift-1)) & 32'b1;
-            if (new_index & 1'b1) begin
+            new_index2 =  (i >> (shift-1)) & 32'b1;
+            if (new_index2[0]) begin
                 en &= plru_tree_q[idx_base + (i>>shift)];
             end else begin
                 en &= ~plru_tree_q[idx_base + (i>>shift)];
@@ -148,5 +143,18 @@ always_ff @(posedge clk_i or negedge rstn_i) begin
         plru_tree_q <= plru_tree_d;
     end
 end
+
+// Encode replace_en
+always_comb begin
+    replacement_idx_o = '0; // don't care if no 'in' bits set
+    found2 = 1'b0;
+    for (iter = '0; (iter < ENTRIES) && (!found2); iter = iter + 1'b1) begin
+        if (replace_en[iter] == 1'b1) begin
+            replacement_idx_o = iter; 
+            found2 = 1'b1;
+        end
+    end
+end
+
 
 endmodule
