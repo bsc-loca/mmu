@@ -35,7 +35,10 @@ logic found;
 logic found2;
 
 logic [ENTRIES-1:0] replace_en;
-logic [$clog2(ENTRIES)-1:0] iter;
+
+function logic [$clog2(ENTRIES)-1:0] cast_integer(input [31:0] iter);
+    cast_integer = iter[$clog2(ENTRIES)-1:0];
+endfunction
 
 always_comb begin
     access_array = '0; // don't care if no 'in' bits set
@@ -148,9 +151,9 @@ end
 always_comb begin
     replacement_idx_o = '0; // don't care if no 'in' bits set
     found2 = 1'b0;
-    for (iter = '0; (iter < ENTRIES) && (!found2); iter = iter + 1'b1) begin
+    for (int iter = 0; (iter < ENTRIES) && (!found2); iter++) begin
         if (replace_en[iter] == 1'b1) begin
-            replacement_idx_o = iter; 
+            replacement_idx_o = cast_integer(iter);
             found2 = 1'b1;
         end
     end
