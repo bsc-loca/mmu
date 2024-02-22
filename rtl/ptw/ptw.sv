@@ -111,7 +111,7 @@ genvar lvl;
 generate
     for (lvl = 0; lvl < LEVELS; lvl++) begin
         logic [VPN_SIZE-1:0] aux_vpn_req;
-        assign aux_vpn_req = (r_req.vpn >> (LEVELS-lvl-1)*PAGE_LVL_BITS);
+        assign aux_vpn_req = (r_req.vpn >> ((LEVELS-lvl-1)*PAGE_LVL_BITS));
         assign vpn_req[lvl] = aux_vpn_req[PAGE_LVL_BITS-1:0];
     end
 endgenerate
@@ -133,7 +133,7 @@ generate
     for (c = 0; c < (LEVELS-1); c++) begin
         always_comb begin
             if (pte.r || pte.w || pte.x) begin
-                valid_pte_lvl[c] = (pte.ppn[(LEVELS-c-1)*PAGE_LVL_BITS-1:0] == '0) ? dmem_ptw_comm_i.resp.data[0] : 1'b0; //Make sure PPN LSB are 0
+                valid_pte_lvl[c] = (pte.ppn[((LEVELS-c-1)*PAGE_LVL_BITS)-1:0] == '0) ? dmem_ptw_comm_i.resp.data[0] : 1'b0; //Make sure PPN LSB are 0
             end else begin
                 valid_pte_lvl[c] = dmem_ptw_comm_i.resp.data[0];
             end
@@ -171,7 +171,7 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
     end else begin
         if ((current_state == S_WAIT) && dmem_ptw_comm_i.resp.valid) begin
             r_pte <= pte;
-        end else if ((current_state == S_REQ) && pte_cache_hit && (count_q < LEVELS-1)) begin
+        end else if ((current_state == S_REQ) && pte_cache_hit && (count_q < (LEVELS-1))) begin
             r_pte.ppn <= pte_cache_data; 
         end else if (ptw_ready & tlb_ptw_comm.req.valid) begin
             r_req <= tlb_ptw_comm.req;
@@ -242,29 +242,29 @@ assign full_cache =& valid_vector; //And Reduction
 assign pte_cache_hit =| hit_vector; //Or Reduction
 
 //Find hit index and data of the data[hit_idx]
-bit found;
+logic found;
 always_comb begin
     hit_idx = '0;
     pte_cache_data = '0;
-    found = 0; // Control variable
+    found = 1'b0; // Control variable
     for (int i = 0; (i < PTW_CACHE_SIZE) && (!found); i++) begin
         if (hit_vector[i]) begin
             hit_idx = i;
             pte_cache_data = ptecache_entry[i].data;
-            found = 1;
+            found = 1'b1;
         end
     end
 end
 
 //Priority Encoder
-bit found2;
+logic found2;
 always_comb begin
     priorityEncoder_idx = '0;
-    found2 = 0;
+    found2 = 1'b0;
     for (int i = 0; (i < PTW_CACHE_SIZE) && (!found2); i++) begin
         if (!valid_vector[i]) begin
             priorityEncoder_idx = i;
-            found2 = 1;
+            found2 = 1'b1;
         end
     end
 end

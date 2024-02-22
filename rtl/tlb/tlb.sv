@@ -94,9 +94,9 @@ assign cache_asid = cache_tlb_comm_i.req.asid;
 always_comb begin
     int i;
     for (i = 0; i < TLB_ENTRIES; i++) begin
-        hits_g[i] = (tlb_entries[i].vpn[26:18] == cache_vpn[26:18] && tlb_entries[i].asid == cache_asid && tlb_entries[i].nempty && tlb_entries[i].level == GIGA_PAGE) ? 1'b1 : 1'b0;
-        hits_m[i] = (tlb_entries[i].vpn[26:9] == cache_vpn[26:9] && tlb_entries[i].asid == cache_asid && tlb_entries[i].nempty && tlb_entries[i].level == MEGA_PAGE) ? 1'b1 : 1'b0;
-        hits_k[i] = (tlb_entries[i].vpn == cache_vpn[26:0] && tlb_entries[i].asid == cache_asid && tlb_entries[i].nempty && tlb_entries[i].level == KILO_PAGE) ? 1'b1 : 1'b0;
+        hits_g[i] = ((tlb_entries[i].vpn[26:18] == cache_vpn[26:18]) && (tlb_entries[i].asid == cache_asid) && tlb_entries[i].nempty && (tlb_entries[i].level == GIGA_PAGE)) ? 1'b1 : 1'b0;
+        hits_m[i] = ((tlb_entries[i].vpn[26:9] == cache_vpn[26:9]) && (tlb_entries[i].asid == cache_asid) && tlb_entries[i].nempty && (tlb_entries[i].level == MEGA_PAGE)) ? 1'b1 : 1'b0;
+        hits_k[i] = ((tlb_entries[i].vpn == cache_vpn[26:0]) && (tlb_entries[i].asid == cache_asid) && tlb_entries[i].nempty && (tlb_entries[i].level == KILO_PAGE)) ? 1'b1 : 1'b0;
     end
 end
 assign hits_cam = hits_g | hits_m | hits_k; // at maximun, only one element of the hits_cam array will have a 1
@@ -106,7 +106,7 @@ assign hit_g = |hits_g;
 assign hit_cam = |hits_cam;
 
 // encodes the hit index
-bit found;
+logic found;
 always_comb begin
     hit_idx = '0; // don't care if no 'in' bits set
     found = 0;
@@ -168,7 +168,7 @@ pseudoLRU #(.ENTRIES(TLB_ENTRIES)) tlb_PLRU (
 always_comb begin
     invalid_idx = '0;
     has_invalid_entry = ~tlb_entries[invalid_idx].nempty;
-    while (!has_invalid_entry && invalid_idx != (TLB_ENTRIES-1)) begin
+    while (!has_invalid_entry && (invalid_idx != (TLB_ENTRIES-1))) begin
         invalid_idx += 1'b1;
         has_invalid_entry = ~tlb_entries[invalid_idx].nempty;
     end
@@ -190,7 +190,7 @@ always_comb begin
     end else if (clean_tlb) begin // flush invalid entries and cam hit in a non-dirty page when store arrives
         clear_tlb = 1'b1;
         for (int i=0; i<TLB_ENTRIES; ++i) begin
-            if (!tlb_entries[i].valid || (i == hit_idx && hit_cam && !store_hit)) begin
+            if (!tlb_entries[i].valid || ((i == hit_idx) && hit_cam && !store_hit)) begin
                 clear_mask[i] = 1'b1; // invalidate the TLB entry because we do not have dirty bit on it and is required or entry is invalid
             end 
         end
