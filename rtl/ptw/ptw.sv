@@ -93,6 +93,10 @@ logic [PPN_SIZE-1:0] resp_ppn;
 logic pte_cache_hit;
 logic [PPN_SIZE-1:0] pte_cache_data;
 
+// Truncate function
+function [$clog2(PTW_CACHE_SIZE)-1:0] trunc_ptw_cache_size(input [31:0] val_in);
+    trunc_ptw_cache_size = val_in[$clog2(PTW_CACHE_SIZE)-1:0];
+endfunction
 
 // PTW Arbiter
 ptw_arb ptw_arb_inst(
@@ -249,7 +253,7 @@ always_comb begin
     found = 1'b0; // Control variable
     for (int i = 0; (i < PTW_CACHE_SIZE) && (!found); i++) begin
         if (hit_vector[i]) begin
-            hit_idx = i;
+            hit_idx = trunc_ptw_cache_size(i);
             pte_cache_data = ptecache_entry[i].data;
             found = 1'b1;
         end
@@ -263,7 +267,7 @@ always_comb begin
     found2 = 1'b0;
     for (int i = 0; (i < PTW_CACHE_SIZE) && (!found2); i++) begin
         if (!valid_vector[i]) begin
-            priorityEncoder_idx = i;
+            priorityEncoder_idx = trunc_ptw_cache_size(i);
             found2 = 1'b1;
         end
     end

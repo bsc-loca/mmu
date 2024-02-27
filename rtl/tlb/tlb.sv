@@ -42,6 +42,11 @@ import mmu_pkg::*;
 
 tlb_entry_t [TLB_ENTRIES-1:0] tlb_entries;
 
+// Truncate function
+function [TLB_IDX_SIZE-1:0] trunc_tlb_idx_size(input [31:0] val_in);
+    trunc_tlb_idx_size = val_in[TLB_IDX_SIZE-1:0];
+endfunction
+
 // TLB WRITE LOGIC
 ///////////////////////////////
 
@@ -112,7 +117,7 @@ always_comb begin
     found = 0;
     for (int i = 0; (i < TLB_ENTRIES) && (!found); i++) begin
         if (hits_cam[i]==1'b1) begin
-            hit_idx = i;
+            hit_idx = trunc_tlb_idx_size(i);
             found = 1;
         end
     end
