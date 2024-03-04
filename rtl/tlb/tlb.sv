@@ -358,7 +358,7 @@ assign xcpt_ld = (vm_enable && ((tlb_hit && !read_ok) || tlb_entry_access_is_zer
 // PPN ASSIGNAMENT
 ///////////////////////////////
 
-logic [PPN_SIZE-1:0] ppn_k, ppn_m, ppn_g, ppn;
+logic [PPN_SIZE-1:0] ppn_k, ppn_m, ppn_g;
 
 // We receive superpages from PTW as if they were 4KB pages (implementation decision in LowRisc)
 // For example 2MB ppn 1 is encoded as 100000000b -> 512 in 4KB pages
@@ -380,6 +380,8 @@ assign tlb_cache_comm_o.resp.ppn =
 assign tlb_cache_comm_o.resp.xcpt.load = xcpt_ld;
 assign tlb_cache_comm_o.resp.xcpt.store = xcpt_st;
 assign tlb_cache_comm_o.resp.xcpt.fetch = xcpt_if;
+
+assign tlb_cache_comm_o.resp.hit_idx = 'h0;
 
 // PMU EVENTS
 ///////////////////////////////
