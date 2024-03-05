@@ -45,7 +45,7 @@ import mmu_pkg::*;
     output logic pmu_ptw_miss_o
 );
 //Mem commands
-localparam [4:0] M_XA_OR = 5'b01010;
+//localparam [4:0] M_XA_OR = 5'b01010;
 localparam [4:0] M_XRD = 5'b00000;
 localparam [3:0] MT_D = 4'b0011;
 
@@ -161,7 +161,7 @@ assign is_pte_sx = pte.v && pte.x && !pte.u;
 
 // Page Table Entry pointer
 logic [63:0] aux_pte_addr;
-assign aux_pte_addr = 64'(unsigned'({r_pte.ppn, vpn_idx, ($clog2(riscv_pkg::XLEN/8))'(1'b0)}));
+assign aux_pte_addr = {{(64-(PPN_SIZE+PAGE_LVL_BITS+$clog2(riscv_pkg::XLEN/8))){1'b0}}, {r_pte.ppn, vpn_idx, {{($clog2(riscv_pkg::XLEN/8))}{1'b0}}}};
 assign pte_addr = aux_pte_addr[SIZE_VADDR:0] ; // For Sv39: (r_pte.ppn << 12) + (vpn_idx << 3)
 
 // PTW Ready
@@ -319,28 +319,30 @@ assign ptw_dmem_comm_o.req.cmd = M_XRD;
 assign ptw_dmem_comm_o.req.typ = MT_D;
 assign ptw_dmem_comm_o.req.addr = pte_addr;
 assign ptw_dmem_comm_o.req.kill = 1'b0;
-assign ptw_dmem_comm_o.req.data = 64'(unsigned'({pte_wdata.ppn, 
-                                                 pte_wdata.rfs, 
-                                                 pte_wdata.d,
-                                                 pte_wdata.a,
-                                                 pte_wdata.g,
-                                                 pte_wdata.u,
-                                                 pte_wdata.x,
-                                                 pte_wdata.w,
-                                                 pte_wdata.r,
-                                                 pte_wdata.v
-                                                 }));
+assign ptw_dmem_comm_o.req.data = { '0,
+                                    pte_wdata.ppn, 
+                                    pte_wdata.rfs, 
+                                    pte_wdata.d,
+                                    pte_wdata.a,
+                                    pte_wdata.g,
+                                    pte_wdata.u,
+                                    pte_wdata.x,
+                                    pte_wdata.w,
+                                    pte_wdata.r,
+                                    pte_wdata.v
+                                    };
 
 // TLB Response
 assign resp_err = (current_state == S_ERROR);
 assign resp_val = (current_state == S_DONE) || resp_err;
 
-assign r_resp_ppn = 64'(unsigned'(pte_addr[SIZE_VADDR-1:12])); // pte_addr >> 12
+assign r_resp_ppn = {'0, pte_addr[SIZE_VADDR-1:12]}; // pte_addr >> 12
+//assign r_resp_ppn = {{(64-(SIZE_VADDR-12)){1'b0}}, pte_addr[SIZE_VADDR-1:12]}; // pte_addr >> 12
 genvar j;
 generate
     for (j = 0; j < (LEVELS-1); j++) begin
         logic [63:0] aux_resp_ppn_lvl;
-        assign aux_resp_ppn_lvl = 64'(unsigned'({r_resp_ppn[63:(LEVELS-j-1)*PAGE_LVL_BITS], r_req.vpn[PAGE_LVL_BITS*(LEVELS-j-1)-1:0]}));
+        assign aux_resp_ppn_lvl = {'0, {r_resp_ppn[63:(LEVELS-j-1)*PAGE_LVL_BITS], r_req.vpn[PAGE_LVL_BITS*(LEVELS-j-1)-1:0]}};
         assign resp_ppn_lvl[j] = aux_resp_ppn_lvl[PPN_SIZE-1:0];
     end
 endgenerate

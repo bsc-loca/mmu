@@ -47,6 +47,10 @@ function [TLB_IDX_SIZE-1:0] trunc_tlb_idx_size(input [31:0] val_in);
     trunc_tlb_idx_size = val_in[TLB_IDX_SIZE-1:0];
 endfunction
 
+function [TLB_IDX_SIZE-1:0] trunc_tlb_idx_size_4in(input [3:0] val_in);
+    trunc_tlb_idx_size_4in = val_in[TLB_IDX_SIZE-1:0];
+endfunction
+
 // TLB WRITE LOGIC
 ///////////////////////////////
 
@@ -174,7 +178,7 @@ always_comb begin
     invalid_idx = '0;
     has_invalid_entry = ~tlb_entries[invalid_idx].nempty;
     while (!has_invalid_entry && (invalid_idx != (TLB_ENTRIES-1))) begin
-        invalid_idx += 1'b1;
+        invalid_idx = trunc_tlb_idx_size_4in(invalid_idx + 1'b1);
         has_invalid_entry = ~tlb_entries[invalid_idx].nempty;
     end
 end
