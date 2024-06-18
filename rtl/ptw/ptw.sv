@@ -147,7 +147,8 @@ endgenerate
 assign valid_pte_lvl[LEVELS-1] = dmem_ptw_comm_i.resp.data[0];
 assign pte.v = valid_pte_lvl[count_q];
 
-assign invalid_pte = ((dmem_ptw_comm_i.resp.data >> (PPN_SIZE+10)) != '0) ? 1'b1 : 1'b0; //Make sure that N, PBMT and Reserved are 0
+assign invalid_pte = (((dmem_ptw_comm_i.resp.data >> (PPN_SIZE+10)) != '0) ||
+                      ((is_pte_table & pte.v & (pte.d || pte.a || pte.u)))) ? 1'b1 : 1'b0; //Make sure that N, PBMT and Reserved are 0
 
 assign is_pte_table = pte.v && !pte.x && !pte.w && !pte.r;
 assign is_pte_leaf = pte.v && (pte.x || pte.w || pte.r);
