@@ -20,6 +20,9 @@
 
 package mmu_pkg;
 
+//Nedded from riscv_pkg
+parameter XLEN = 64;
+
 // SV39 Parameters
 parameter VPN_SIZE = 27;
 parameter PPN_SIZE = 44;
