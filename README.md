@@ -21,3 +21,28 @@ This repository includes a Translation Lookaside Buffer (TLB) and a Page Table W
 <p align="center">
 	<img src="./doc/PTW_fsm.png" alt="block" width="400"/> 
 </p>
+
+## Directory Structure
+The top-level directories of this repo:
+* **hw**: Source code used by MMU.
+* **target**: Auto-generated QuestaSim project.
+
+## Tools Used
+- QuestaSim >= 2022.3 
+
+## Building
+To build different parts of MMU, run make followed by these targets:
+
+- hw-all: generated hardware.
+- sim-all: scripts and external models for simulation.
+- run_sim: compiles and launches a simulation without gui
+
+## Simulation
+After building MMU, start QuestaSim in target/sim/vsim and run:
+
+      # Compile design
+      source compile.mmu.tcl
+
+      # Start and run simulation
+      source start_mmu.tcl
+      run -all

@@ -1,0 +1,17 @@
+package:
+  name: mmu_bsc
+  authors:
+    - "Omar Alymlahi <omar.alymlahi@bsc.es>"
+
+sources:
+  - hw/rtl/mmu_pkg.sv
+  - hw/rtl/common/pseudoLRU.sv
+  - hw/rtl/ptw/ptw_arb.sv
+  - hw/rtl/ptw/ptw.sv
+  - hw/rtl/tlb/tlb.sv
+  - hw/rtl/mmu_top.sv
+
+
+  - target: any(simulation, test)
+    files:
+      - target/sim/src/mmu_tb.sv
