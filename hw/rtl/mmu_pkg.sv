@@ -26,7 +26,7 @@ parameter XLEN = 64;
 // SV39 Parameters
 parameter VPN_SIZE = 27;
 parameter PPN_SIZE = 44;
-parameter SIZE_VADDR = 39;
+parameter SIZE_VADDR = 42; // This is used as the size of physical addresses
 parameter ASID_SIZE = 7;
 parameter LEVELS = 3;
 parameter PAGE_LVL_BITS = 9;
@@ -91,6 +91,7 @@ typedef struct packed {
 typedef struct packed {
     logic                 valid;        // Translation request valid.
     logic [ASID_SIZE-1:0] asid;         // Address space identifier.
+    logic [ASID_SIZE-2-1:0] vmid;       // virtual machine identifier.
     logic [VPN_SIZE:0]    vpn;          // Virtual page number.
     logic                 passthrough;  // Virtual address directly corresponds to physical address, for direct assignment between a virtual machine and the physical device.
     logic                 instruction;  // The translation request is for a instruction fetch address.
@@ -101,6 +102,8 @@ typedef struct packed {
     cache_tlb_req_t req;            // Translation request.
     logic [1:0]     priv_lvl;       // Privilege level of the translation: 2'b00 (User), 2'b01 (Supervisor), 2'b11 (Machine).
     logic           vm_enable;      // Memory virtualization is active.
+    logic           vs_enable;      // vs-stage is active.
+    logic           g_enable;       // g-stage is active.
 } cache_tlb_comm_t;                 // Communication from translation requester to TLB.
 
 typedef struct packed {
@@ -133,9 +136,12 @@ typedef struct packed {
     logic                 valid;    // Translation request valid.
     logic [VPN_SIZE-1:0]  vpn;      // Virtual page number.
     logic [ASID_SIZE-1:0] asid;     // Address space identifier. 
+    logic [ASID_SIZE-2-1:0] vmid;   // virtual machine identifier. 
     logic [1:0]           prv;      // Privilege level of the translation: 2'b00 (User), 2'b01 (Supervisor), 2'b11 (Machine).
     logic                 store;    // Store operation.               
     logic                 fetch;    // Fetch operation.
+    logic                 en_vs;    // Enable vs-stage.
+    logic                 en_g;     // Enable g-stage.
 } tlb_ptw_req_t;                    // Translation request of the TLB to the PTW.
 
 typedef struct packed {
@@ -147,6 +153,7 @@ typedef struct packed {
     logic                      valid; // Translation response valid.
     logic                      error; // An error has ocurred with the translation request. Only check if the response is valid.
     pte_t                      pte;   // Page table entry.
+    pte_t                      guest_pte;   // guest Page table entry.
     logic [$clog2(LEVELS)-1:0] level; // Page entry size: 2'b00 (1 GiB Page), 2'b01 (2 MiB Page), 2'b10 (4 KiB Page). 
 } ptw_tlb_resp_t;                     // PTW response to TLB translation request.
 
@@ -175,11 +182,16 @@ typedef struct packed {
 typedef struct packed {
     logic [VPN_SIZE-1:0]    vpn;    // Virtual page number.
     logic [ASID_SIZE-1:0]   asid;   // Address space identifier.
+    logic [ASID_SIZE-2-1:0] vmid;   // virtual machine identifier.
     logic [PPN_SIZE-1:0]    ppn;    // Physical page number.
+    logic [PPN_SIZE-1:0]    guest_ppn;    // guest Physical page number.
     logic [1:0]             level;  // Page entry size: 2'b00 (1 GiB Page), 2'b01 (2 MiB Page), 2'b10 (4 KiB Page).
     logic                   dirty;  // The page entry is set as dirty.
     logic                   access; // The page entry has been accessed.
+    logic                   guest_dirty;  // The guest page entry is set as dirty.
+    logic                   guest_access; // The guest page entry has been accessed.
     tlb_entry_permissions_t perms;  // TLB page entry permissions
+    tlb_entry_permissions_t guest_perms;  // TLB guest page entry permissions
     logic                   valid;  // The tlb entry is valid, set to 1 when the PTW sends a translation response without errors.
     logic                   nempty; // The tlb entry is not empty, when the PTW sends a translation response that we don't have to ignore, it is set to 1.
 } tlb_entry_t;                      // TLB page entry.
@@ -187,6 +199,7 @@ typedef struct packed {
 typedef struct packed {
     logic [VPN_SIZE-1:0]        vpn;        // Virtual page number.
     logic [ASID_SIZE-1:0]       asid;       // Address space identifier.
+    logic [ASID_SIZE-2-1:0]     vmid;       // virtual machine identifier.
     logic                       store;      // Store operation.
     logic                       fetch;      // Fetch operation.
     logic [TLB_IDX_SIZE-1:0]    write_idx;  // Index where the page requested to the PTW will be stored in the TLB's CAM. 
@@ -256,6 +269,8 @@ typedef struct packed {
 
 typedef struct packed {
     logic [63:0] satp;
+    logic [63:0] vsatp;
+    logic [63:0] hgatp;
     logic flush;
     csr_mstatus_t mstatus;
 } csr_ptw_comm_t;

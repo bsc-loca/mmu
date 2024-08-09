@@ -33,7 +33,7 @@ add wave -noupdate /mmu_tb/DUT_MMU/itlb_ptw_comm
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb_ptw_comm
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_itlb_comm
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_dtlb_comm
-add wave -noupdate -divider iTLB
+add wave -noupdate -divider itlb
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/clk_i
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/rstn_i
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/cache_tlb_comm_i
@@ -43,6 +43,7 @@ add wave -noupdate /mmu_tb/DUT_MMU/itlb/tlb_ptw_comm_o
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/pmu_tlb_access_o
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/pmu_tlb_miss_o
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/tlb_entries
+add wave -noupdate /mmu_tb/DUT_MMU/itlb/is_virtualized_env
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/clear_tlb
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/write_tlb
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/clear_mask
@@ -58,11 +59,14 @@ add wave -noupdate /mmu_tb/DUT_MMU/itlb/hit_cam
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/hit_idx
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/cache_vpn
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/cache_asid
+add wave -noupdate /mmu_tb/DUT_MMU/itlb/cache_vmid
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/found
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/tlb_hit
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/tlb_miss
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/store_hit
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/vm_enable
+add wave -noupdate /mmu_tb/DUT_MMU/itlb/vs_enable
+add wave -noupdate /mmu_tb/DUT_MMU/itlb/g_enable
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/tlb_entry_access_is_zero
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/tlb_entry_dirty_is_zero
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/passthrough
@@ -90,7 +94,7 @@ add wave -noupdate /mmu_tb/DUT_MMU/itlb/xcpt_ld
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/ppn_k
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/ppn_m
 add wave -noupdate /mmu_tb/DUT_MMU/itlb/ppn_g
-add wave -noupdate -divider dTLB
+add wave -noupdate -divider dtlb
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb/clk_i
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb/rstn_i
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb/cache_tlb_comm_i
@@ -100,6 +104,7 @@ add wave -noupdate /mmu_tb/DUT_MMU/dtlb/tlb_ptw_comm_o
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb/pmu_tlb_access_o
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb/pmu_tlb_miss_o
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb/tlb_entries
+add wave -noupdate /mmu_tb/DUT_MMU/dtlb/is_virtualized_env
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb/clear_tlb
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb/write_tlb
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb/clear_mask
@@ -115,11 +120,14 @@ add wave -noupdate /mmu_tb/DUT_MMU/dtlb/hit_cam
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb/hit_idx
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb/cache_vpn
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb/cache_asid
+add wave -noupdate /mmu_tb/DUT_MMU/dtlb/cache_vmid
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb/found
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb/tlb_hit
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb/tlb_miss
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb/store_hit
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb/vm_enable
+add wave -noupdate /mmu_tb/DUT_MMU/dtlb/vs_enable
+add wave -noupdate /mmu_tb/DUT_MMU/dtlb/g_enable
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb/tlb_entry_access_is_zero
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb/tlb_entry_dirty_is_zero
 add wave -noupdate /mmu_tb/DUT_MMU/dtlb/passthrough
@@ -163,6 +171,7 @@ add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/pmu_ptw_hit_o
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/pmu_ptw_miss_o
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/count_d
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/count_q
+add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/vs_count_reg
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/count
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_tlb_comm
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/tlb_ptw_comm
@@ -173,9 +182,18 @@ add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/r_req
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/r_pte
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/pte
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/pte_wdata
+add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/is_virtualized_env
+add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/is_g_stage
+add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/last_g_stage
+add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/is_vs_stage
+add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/allow_vs_req
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/vpn_req
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/vpn_idx
+add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/g_vpn0_req
+add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/g_vpn_req
+add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/g_vpn_idx
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/pte_addr
+add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/vs_pte_addr_reg
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/invalid_pte
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/valid_pte_lvl
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/is_pte_leaf
@@ -196,6 +214,7 @@ add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/resp_ppn
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/pte_cache_hit
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/pte_cache_data
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/aux_pte_addr
+add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/g_aux_pte_addr
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptecache_entry
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/access_hit
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/full_cache
@@ -206,37 +225,9 @@ add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/valid_vector
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/hit_vector
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/found
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/found2
-add wave -noupdate -divider ptw_arb
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_arb_inst/clk_i
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_arb_inst/rstn_i
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_arb_inst/itlb_ptw_comm_i
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_arb_inst/dtlb_ptw_comm_i
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_arb_inst/ptw_itlb_comm_o
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_arb_inst/ptw_dtlb_comm_o
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_arb_inst/ptw_tlb_comm_i
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_arb_inst/tlb_ptw_comm_o
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_arb_inst/is_req_waiting_d
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_arb_inst/is_req_waiting_q
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_arb_inst/itlb_req_waiting_d
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_arb_inst/itlb_req_waiting_q
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_arb_inst/current_state
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_arb_inst/next_state
-add wave -noupdate -divider plru
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_PLRU/ENTRIES
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_PLRU/clk_i
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_PLRU/rstn_i
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_PLRU/access_hit_i
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_PLRU/access_idx_i
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_PLRU/replacement_idx_o
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_PLRU/access_array
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_PLRU/found
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_PLRU/found2
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_PLRU/replace_en
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_PLRU/plru_tree_q
-add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/ptw_PLRU/plru_tree_d
 TreeUpdate [SetDefaultTree]
 WaveRestoreCursors {{Cursor 1} {0 ps} 0}
-quietly wave cursor active 0
+quietly wave cursor active 1
 configure wave -namecolwidth 150
 configure wave -valuecolwidth 112
 configure wave -justifyvalue left
@@ -251,4 +242,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ps
 update
-WaveRestoreZoom {0 ps} {67200 ps}
+WaveRestoreZoom {0 ps} {165900 ps}

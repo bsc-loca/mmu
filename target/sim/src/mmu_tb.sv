@@ -79,11 +79,56 @@ always_ff @(posedge tb_clk_i, negedge tb_rstn_i) begin
     if(~tb_dmem_ptw_comm_i.dmem_ready) begin
       tb_dmem_ptw_comm_i.resp.valid = 1'b1;
       case (tb_ptw_dmem_comm_o.req.addr)
-        39'h0080004FF8: begin
+        42'h0080004FF8: begin
           tb_dmem_ptw_comm_i.resp.data = 64'h20001801;
         end
-        39'h0080006FF8: begin
+        42'h0080006FF8: begin
           tb_dmem_ptw_comm_i.resp.data = 64'h200000CF;
+        end
+        42'h0080004080: begin
+          tb_dmem_ptw_comm_i.resp.data = 64'h20001431;
+        end
+        42'h0080004088: begin
+          tb_dmem_ptw_comm_i.resp.data = 64'h20002031;
+        end
+        42'h0080004090: begin
+          tb_dmem_ptw_comm_i.resp.data = 64'h20002C31;
+        end
+        42'h0080004098: begin
+          tb_dmem_ptw_comm_i.resp.data = 64'h20003831;
+        end
+        42'h00800050A0: begin
+          tb_dmem_ptw_comm_i.resp.data = 64'h20001831;
+        end
+        42'h0080006100: begin
+          tb_dmem_ptw_comm_i.resp.data = 64'h20001CF7;
+        end
+        42'h0080007080: begin
+          tb_dmem_ptw_comm_i.resp.data = 64'h110E88831;
+        end
+        42'h00800080E8: begin
+          tb_dmem_ptw_comm_i.resp.data = 64'h20002431;
+        end
+        42'h0080009110: begin
+          tb_dmem_ptw_comm_i.resp.data = 64'h200028F7;
+        end
+        42'h008000A0A8: begin
+          tb_dmem_ptw_comm_i.resp.data = 64'h121288C31;
+        end
+        42'h008000B128: begin
+          tb_dmem_ptw_comm_i.resp.data = 64'h20003031;
+        end
+        42'h008000C118: begin
+          tb_dmem_ptw_comm_i.resp.data = 64'h200034F7;
+        end
+        42'h008000D108: begin
+          tb_dmem_ptw_comm_i.resp.data = 64'h1316890F7;
+        end
+        42'h008000E168: begin
+          tb_dmem_ptw_comm_i.resp.data = 64'h20003C31;
+        end
+        42'h008000F120: begin
+          tb_dmem_ptw_comm_i.resp.data = 64'h2003FCF7;
         end
         default: begin
           tb_dmem_ptw_comm_i.resp.data = '0;
@@ -118,6 +163,8 @@ end
             //tb_dmem_ptw_comm_i = '0;
             tb_csr_ptw_comm_i = '0;
             tb_csr_ptw_comm_i.satp = 64'h80004;
+            tb_csr_ptw_comm_i.vsatp = 64'h402820;
+            tb_csr_ptw_comm_i.hgatp = 64'h80004;
             tb_csr_ptw_comm_i.mstatus.fs = 2'b11;
             tb_csr_ptw_comm_i.mstatus.sd = 1'b1;
             tb_csr_ptw_comm_i.mstatus.sxl = 2'b10;
@@ -187,7 +234,7 @@ end
             $display("*** test_itlb");
             tb_icache_itlb_comm_i.priv_lvl = 2'b01;
             tick();
-            tb_icache_itlb_comm_i.req.vpn = 28'h80001;
+            tb_icache_itlb_comm_i.req.vpn = 27'h80001;
             $display("Testing with vpn %x (vm disabled)", tb_icache_itlb_comm_i.req.vpn);
             tb_icache_itlb_comm_i.req.valid = 1'b1;
             tick();
@@ -198,7 +245,7 @@ end
             tick();
             $display("*** test_itlb_ptw");
             tb_icache_itlb_comm_i.vm_enable = 1'b1;
-            tb_icache_itlb_comm_i.req.vpn = 28'hFFFFE00;
+            tb_icache_itlb_comm_i.req.vpn = 27'hFFFFE00;
             $display("Testing with vpn %x (vm enabled)", tb_icache_itlb_comm_i.req.vpn);
             tb_icache_itlb_comm_i.req.valid = 1'b1;
             tick();
@@ -206,6 +253,22 @@ end
             tick();
             wait(tb_itlb_icache_comm_o.tlb_ready);
             $display("result itlb + ptw: %x", tb_itlb_icache_comm_o.resp.ppn);
+            tick();
+            $display("*** test_itlb_ptw virtualized environment");
+            tb_icache_itlb_comm_i.vs_enable = 1'b1;
+            tb_icache_itlb_comm_i.g_enable = 1'b1;
+            tb_icache_itlb_comm_i.req.vpn = 27'h402A21;
+            $display("Testing with vpn %x (vm, vs, and g enabled)", tb_icache_itlb_comm_i.req.vpn);
+            tb_icache_itlb_comm_i.req.valid = 1'b1;
+            tick();
+            tb_icache_itlb_comm_i.req.valid = 1'b0;
+            tick();
+            wait(tb_itlb_icache_comm_o.tlb_ready);
+            $display("Time is %0t",$time); 
+            $display("result virtualized environment itlb + ptw: %x", tb_itlb_icache_comm_o.resp.ppn);
+            #0;
+            $display("Time is %0t",$time); 
+            $display("result virtualized environment itlb + ptw: %x", tb_itlb_icache_comm_o.resp.ppn);
             tick();
         end
     endtask
