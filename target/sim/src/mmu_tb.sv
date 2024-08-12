@@ -92,7 +92,7 @@ always_ff @(posedge tb_clk_i, negedge tb_rstn_i) begin
           tb_dmem_ptw_comm_i.resp.data = 64'h20002031;
         end
         42'h0080004090: begin
-          tb_dmem_ptw_comm_i.resp.data = 64'h20002C31;
+          tb_dmem_ptw_comm_i.resp.data = 64'h300000F7;//64'h20002C31;
         end
         42'h0080004098: begin
           tb_dmem_ptw_comm_i.resp.data = 64'h20003831;
@@ -107,21 +107,21 @@ always_ff @(posedge tb_clk_i, negedge tb_rstn_i) begin
           tb_dmem_ptw_comm_i.resp.data = 64'h110E88831;
         end
         42'h00800080E8: begin
-          tb_dmem_ptw_comm_i.resp.data = 64'h20002431;
+          tb_dmem_ptw_comm_i.resp.data = 64'h228000F7;//64'h20002431;
         end
-        42'h0080009110: begin
-          tb_dmem_ptw_comm_i.resp.data = 64'h200028F7;
-        end
-        42'h008000A0A8: begin
+        //42'h0080009110: begin
+        //  tb_dmem_ptw_comm_i.resp.data = 64'h200028F7;
+        //end
+        42'h008A0220A8: begin
           tb_dmem_ptw_comm_i.resp.data = 64'h121288C31;
         end
-        42'h008000B128: begin
-          tb_dmem_ptw_comm_i.resp.data = 64'h20003031;
-        end
-        42'h008000C118: begin
-          tb_dmem_ptw_comm_i.resp.data = 64'h200034F7;
-        end
-        42'h008000D108: begin
+        //42'h008000B128: begin
+        //  tb_dmem_ptw_comm_i.resp.data = 64'h20003031;
+        //end
+        //42'h008000C118: begin
+        //  tb_dmem_ptw_comm_i.resp.data = 64'h200034F7;
+        //end
+        42'h00C4A23108: begin
           tb_dmem_ptw_comm_i.resp.data = 64'h1316890F7;
         end
         42'h008000E168: begin

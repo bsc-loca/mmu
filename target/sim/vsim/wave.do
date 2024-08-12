@@ -211,6 +211,8 @@ add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/resp_val
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/r_resp_ppn
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/resp_ppn_lvl
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/resp_ppn
+add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/g_resp_ppn_lvl
+add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/g_resp_ppn
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/pte_cache_hit
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/pte_cache_data
 add wave -noupdate /mmu_tb/DUT_MMU/ptw_inst/aux_pte_addr
@@ -242,4 +244,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ps
 update
-WaveRestoreZoom {0 ps} {165900 ps}
+WaveRestoreZoom {0 ps} {138600 ps}

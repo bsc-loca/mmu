@@ -104,6 +104,9 @@ logic [63:0] r_resp_ppn;
 logic [PPN_SIZE-1:0] resp_ppn_lvl [LEVELS-1:0];
 logic [PPN_SIZE-1:0] resp_ppn;
 
+logic [PPN_SIZE-1:0] g_resp_ppn_lvl [LEVELS-1:0];
+logic [PPN_SIZE-1:0] g_resp_ppn;
+
 logic pte_cache_hit;
 logic [PPN_SIZE-1:0] pte_cache_data;
 
@@ -214,7 +217,7 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
             r_req <= tlb_ptw_comm.req;
             r_pte.ppn <= (tlb_ptw_comm.req.en_vs | tlb_ptw_comm.req.en_g) ? csr_ptw_comm_i.vsatp[PPN_SIZE-1:0] : csr_ptw_comm_i.satp[PPN_SIZE-1:0];
         end
-        if (current_state == S_G_TO_VS) r_pte.ppn <= resp_ppn;
+        if (current_state == S_G_TO_VS) r_pte.ppn <= g_resp_ppn;
     end
 end
 `ifndef NO_PTW_CACHE
@@ -375,20 +378,27 @@ genvar j;
 generate
     for (j = 0; j < (LEVELS-1); j++) begin
         logic [63:0] aux_resp_ppn_lvl;
+        logic [63:0] g_aux_resp_ppn_lvl;
         assign aux_resp_ppn_lvl = {{(64-$bits(r_resp_ppn[63:(LEVELS-j-1)*PAGE_LVL_BITS])-$bits(r_req.vpn[PAGE_LVL_BITS*(LEVELS-j-1)-1:0])){1'b0}}, 
                                     r_resp_ppn[63:(LEVELS-j-1)*PAGE_LVL_BITS], 
                                     r_req.vpn[PAGE_LVL_BITS*(LEVELS-j-1)-1:0]};
         assign resp_ppn_lvl[j] = aux_resp_ppn_lvl[PPN_SIZE-1:0];
+        
+        assign g_aux_resp_ppn_lvl = {'0, {r_resp_ppn[63:(LEVELS-j-1)*PAGE_LVL_BITS], vs_pte_addr_reg[PAGE_LVL_BITS*(LEVELS-j-1)-1+12:12]}};
+        assign g_resp_ppn_lvl[j] = g_aux_resp_ppn_lvl[PPN_SIZE-1:0];
     end
 endgenerate
 assign resp_ppn_lvl[LEVELS-1] = r_resp_ppn[PPN_SIZE-1:0];
 assign resp_ppn = resp_ppn_lvl[count_q];
 
+assign g_resp_ppn_lvl[LEVELS-1] = r_resp_ppn[PPN_SIZE-1:0];
+assign g_resp_ppn = g_resp_ppn_lvl[count_q];
+
 // Send TLB Response to Arb
 assign ptw_tlb_comm.resp.valid = resp_val;
 assign ptw_tlb_comm.resp.error = resp_err;
 assign ptw_tlb_comm.resp.level = count_q;
-assign ptw_tlb_comm.resp.pte.ppn = resp_ppn;
+assign ptw_tlb_comm.resp.pte.ppn = is_virtualized_env? g_resp_ppn : resp_ppn;
 assign ptw_tlb_comm.resp.pte.rfs = r_pte.rfs;
 assign ptw_tlb_comm.resp.pte.d = r_pte.d;
 assign ptw_tlb_comm.resp.pte.a = r_pte.a;
