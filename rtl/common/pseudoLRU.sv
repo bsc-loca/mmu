@@ -82,12 +82,11 @@ always_comb begin : plru_replacement
     // default: begin /* No hit */ end
     // endcase
     for (int i = 0; i < ENTRIES; i++) begin
-        automatic logic [31:0] new_index;
+        automatic int idx_base = 0;
+        automatic int shift = 0;
+        automatic logic [31:0] new_index = '0;
         // we got a hit so update the pointer as it was least recently used
         if (access_array[i] & access_hit_i) begin
-            automatic int idx_base = 0;
-            automatic int shift = 0;
-            new_index = '0;
             // Set the nodes to the values we would expect
             for (int lvl = 0; lvl < $clog2(ENTRIES); lvl++) begin
                 idx_base = $unsigned((2**lvl)-1);
@@ -99,6 +98,8 @@ always_comb begin : plru_replacement
             end
         end
         else begin
+            idx_base  = 0;
+            shift     = 0;
             new_index = '0;
         end
     end
