@@ -97,11 +97,6 @@ always_comb begin : plru_replacement
                 plru_tree_d[idx_base + (i >> shift)] = new_index[0];
             end
         end
-        else begin
-            idx_base  = 0;
-            shift     = 0;
-            new_index = '0;
-        end
     end
     // Decode tree to write enable signals
     // Next for-loop basically creates the following logic for e.g. an 8 entry
