@@ -104,7 +104,7 @@ always_ff @(posedge tb_clk_i, negedge tb_rstn_i) begin
           tb_dmem_ptw_comm_i.resp.data = 64'h20001CF7;
         end
         42'h0080007080: begin
-          tb_dmem_ptw_comm_i.resp.data = 64'h110E88831;
+          tb_dmem_ptw_comm_i.resp.data = 64'h110E88821;
         end
         42'h00800080E8: begin
           tb_dmem_ptw_comm_i.resp.data = 64'h228000F7;//64'h20002431;
@@ -113,7 +113,7 @@ always_ff @(posedge tb_clk_i, negedge tb_rstn_i) begin
         //  tb_dmem_ptw_comm_i.resp.data = 64'h200028F7;
         //end
         42'h008A0220A8: begin
-          tb_dmem_ptw_comm_i.resp.data = 64'h121288C31;
+          tb_dmem_ptw_comm_i.resp.data = 64'h121288C21;
         end
         //42'h008000B128: begin
         //  tb_dmem_ptw_comm_i.resp.data = 64'h20003031;
@@ -122,7 +122,7 @@ always_ff @(posedge tb_clk_i, negedge tb_rstn_i) begin
         //  tb_dmem_ptw_comm_i.resp.data = 64'h200034F7;
         //end
         42'h00C4A23108: begin
-          tb_dmem_ptw_comm_i.resp.data = 64'h1316890F7;
+          tb_dmem_ptw_comm_i.resp.data = 64'h1316890E7;
         end
         42'h008000E168: begin
           tb_dmem_ptw_comm_i.resp.data = 64'h20003C31;

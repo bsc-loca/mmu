@@ -510,6 +510,7 @@ always_comb begin
           ptw_tlb_comm.resp.guest_pte.r = r_pte.r;
           ptw_tlb_comm.resp.guest_pte.v = r_pte.v;
           next_state = S_REQ;
+          if(aux_pte_addr[63:41] != {24{aux_pte_addr[40]}}) next_state = S_ERROR;
         end
         S_G_TO_VS : begin
           is_g_stage = 1'b0;

@@ -154,9 +154,10 @@ end
 // HIT LOGIC
 ///////////////////////////////
 
-logic tlb_hit, tlb_miss, store_hit, vm_enable, vs_enable, g_enable, tlb_entry_access_is_zero, tlb_entry_dirty_is_zero, passthrough;
+logic tlb_hit, tlb_miss, store_hit, vm_enable, vs_enable, g_enable, tlb_entry_access_is_zero, tlb_entry_dirty_is_zero, tlb_entry_guest_access_is_zero, tlb_entry_guest_dirty_is_zero, passthrough;
 
 logic read_ok, write_ok, exec_ok, sv_priv_lvl; // value chagned by permission checking logic
+logic guest_read_ok, guest_write_ok, guest_exec_ok;
 
 assign vm_enable = cache_tlb_comm_i.vm_enable;
 assign vs_enable = cache_tlb_comm_i.vs_enable;
@@ -165,7 +166,9 @@ assign is_virtualized_env = vs_enable | g_enable;
 assign passthrough = cache_tlb_comm_i.req.passthrough;
 
 assign tlb_entry_access_is_zero = !tlb_entries[hit_idx].access && tlb_entries[hit_idx].valid;
+assign tlb_entry_guest_access_is_zero = !tlb_entries[hit_idx].guest_access && tlb_entries[hit_idx].valid;
 assign tlb_entry_dirty_is_zero = !store_hit && tlb_entries[hit_idx].valid;
+assign tlb_entry_guest_dirty_is_zero = !(~cache_tlb_comm_i.req.store | (cache_tlb_comm_i.req.store & (tlb_entries[hit_idx].guest_dirty | ~guest_write_ok))) && tlb_entries[hit_idx].valid;
 
 assign tlb_hit = vm_enable && hit_cam && store_hit;
 assign tlb_miss = vm_enable && !(hit_cam);
@@ -345,7 +348,7 @@ assign sv_priv_lvl = (cache_tlb_comm_i.priv_lvl != '0) ? 1'b1 : 1'b0; // if we a
 
 // Read permission
 always_comb begin
-    if (sv_priv_lvl) begin
+    if (sv_priv_lvl & ~is_virtualized_env) begin // Virtualized force to user mode
         if (ptw_tlb_comm_i.ptw_status.sum) begin // if SUM bit is set, in SV we can read in readable user pages
             if (ptw_tlb_comm_i.ptw_status.mxr) begin // if MXR bit is set, executable pages can be also readed
                 read_ok = tlb_entries[hit_idx].perms.sr | tlb_entries[hit_idx].perms.ur | tlb_entries[hit_idx].perms.sx | tlb_entries[hit_idx].perms.ux;
@@ -368,9 +371,34 @@ always_comb begin
     end
 end
 
+// Guest read permission
+always_comb begin
+  if (sv_priv_lvl) begin
+      if (ptw_tlb_comm_i.ptw_status.sum) begin // if SUM bit is set, in SV we can read in readable user pages
+          if (ptw_tlb_comm_i.ptw_status.mxr) begin // if MXR bit is set, executable pages can be also readed
+              guest_read_ok = tlb_entries[hit_idx].guest_perms.sr | tlb_entries[hit_idx].guest_perms.ur | tlb_entries[hit_idx].guest_perms.sx | tlb_entries[hit_idx].guest_perms.ux;
+          end else begin
+              guest_read_ok = tlb_entries[hit_idx].guest_perms.sr | tlb_entries[hit_idx].guest_perms.ur;
+          end
+      end else begin
+          if (ptw_tlb_comm_i.ptw_status.mxr) begin // if MXR bit is set, executable pages can be also readed
+              guest_read_ok = tlb_entries[hit_idx].guest_perms.sr | tlb_entries[hit_idx].guest_perms.sx;
+          end else begin
+              guest_read_ok = tlb_entries[hit_idx].guest_perms.sr;
+          end
+      end
+  end else begin // User mode
+      if (ptw_tlb_comm_i.ptw_status.mxr) begin // if MXR bit is set, executable pages can be also readed
+          guest_read_ok = tlb_entries[hit_idx].guest_perms.ur | tlb_entries[hit_idx].guest_perms.ux;
+      end else begin
+          guest_read_ok = tlb_entries[hit_idx].guest_perms.ur;
+      end
+  end
+end
+
 // Write permission
 always_comb begin
-    if(sv_priv_lvl) begin
+    if(sv_priv_lvl & ~is_virtualized_env) begin // Virtualized force to user mode
         if (ptw_tlb_comm_i.ptw_status.sum) begin // if SUM bit is set, in SV we can write in writable user pages
             write_ok = tlb_entries[hit_idx].perms.sw | tlb_entries[hit_idx].perms.uw;
         end else begin
@@ -381,13 +409,34 @@ always_comb begin
     end
 end
 
+// Guest write permission
+always_comb begin
+  if(sv_priv_lvl) begin
+      if (ptw_tlb_comm_i.ptw_status.sum) begin // if SUM bit is set, in SV we can write in writable user pages
+          guest_write_ok = tlb_entries[hit_idx].guest_perms.sw | tlb_entries[hit_idx].guest_perms.uw;
+      end else begin
+          guest_write_ok = tlb_entries[hit_idx].guest_perms.sw;
+      end
+  end else begin
+      guest_write_ok = tlb_entries[hit_idx].guest_perms.uw;
+  end
+end
+
 // Execution permission
-assign exec_ok = (sv_priv_lvl) ? tlb_entries[hit_idx].perms.sx : tlb_entries[hit_idx].perms.ux;
+assign exec_ok = (sv_priv_lvl & ~is_virtualized_env) ? tlb_entries[hit_idx].perms.sx : tlb_entries[hit_idx].perms.ux;
+
+// Guest execution permission
+assign guest_exec_ok = (sv_priv_lvl) ? tlb_entries[hit_idx].guest_perms.sx : tlb_entries[hit_idx].guest_perms.ux;
 
 logic xcpt_if, xcpt_st, xcpt_ld;
 assign xcpt_if = (vm_enable && ((tlb_hit && !exec_ok) || tlb_entry_access_is_zero)) ? 1'b1 : 1'b0;
 assign xcpt_st = (vm_enable && ((tlb_hit && !write_ok) || tlb_entry_access_is_zero || tlb_entry_dirty_is_zero)) ? 1'b1 : 1'b0;
 assign xcpt_ld = (vm_enable && ((tlb_hit && !read_ok) || tlb_entry_access_is_zero)) ? 1'b1 : 1'b0;
+
+logic guest_xcpt_if, guest_xcpt_st, guest_xcpt_ld;
+assign guest_xcpt_if = (vm_enable && is_virtualized_env && ((tlb_hit && !guest_exec_ok) || tlb_entry_guest_access_is_zero)) ? 1'b1 : 1'b0;
+assign guest_xcpt_st = (vm_enable && is_virtualized_env && ((tlb_hit && !guest_write_ok) || tlb_entry_guest_access_is_zero || tlb_entry_guest_dirty_is_zero)) ? 1'b1 : 1'b0;
+assign guest_xcpt_ld = (vm_enable && is_virtualized_env && ((tlb_hit && !guest_read_ok) || tlb_entry_guest_access_is_zero)) ? 1'b1 : 1'b0;
 
 // PPN ASSIGNAMENT
 ///////////////////////////////
@@ -415,6 +464,11 @@ assign tlb_cache_comm_o.resp.ppn =
 assign tlb_cache_comm_o.resp.xcpt.load = xcpt_ld;
 assign tlb_cache_comm_o.resp.xcpt.store = xcpt_st;
 assign tlb_cache_comm_o.resp.xcpt.fetch = xcpt_if;
+
+assign tlb_cache_comm_o.resp.guest_xcpt.load = is_virtualized_env & guest_xcpt_ld;
+assign tlb_cache_comm_o.resp.guest_xcpt.store = is_virtualized_env & guest_xcpt_st;
+assign tlb_cache_comm_o.resp.guest_xcpt.fetch = is_virtualized_env & guest_xcpt_if;
+
 assign tlb_cache_comm_o.tlb_ready = tlb_ready; 
 
 assign tlb_cache_comm_o.resp.hit_idx = 'h0;
@@ -425,3 +479,4 @@ assign pmu_tlb_access_o = pmu_tlb_access;
 assign pmu_tlb_miss_o = pmu_tlb_miss;
 
 endmodule
+ 
