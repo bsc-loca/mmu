@@ -77,9 +77,10 @@ pte_t pte;
 pte_t pte_wdata;
 
 logic is_virtualized_env;
-logic is_g_stage, last_g_stage, is_vs_stage, allow_vs_req;
+logic g_stage_only, is_g_stage, last_g_stage, is_vs_stage, allow_vs_req;
 assign is_virtualized_env = (r_req.en_vs | r_req.en_g);
 assign is_vs_stage = is_virtualized_env & ~is_g_stage;
+assign g_stage_only = r_req.en_g & ~r_req.en_vs;
 
 logic [PAGE_LVL_BITS-1:0] vpn_req [LEVELS-1:0];
 logic [PAGE_LVL_BITS-1:0] vpn_idx;
@@ -141,12 +142,12 @@ assign vpn_idx = vpn_req[count_q];
 // VPN indexation depending on the page level for G-stage
 genvar g_lvl;
 generate
-    assign g_vpn0_req = (vs_pte_addr_reg >> 12 + ((LEVELS-1)*PAGE_LVL_BITS));
+    assign g_vpn0_req = g_stage_only ? {2'b0, vpn_req[0]} : (vs_pte_addr_reg >> 12 + ((LEVELS-1)*PAGE_LVL_BITS));
     assign g_vpn_req[0] = '0;
     for (g_lvl = 1; g_lvl < LEVELS; g_lvl++) begin
         logic [VPN_SIZE-1:0] g_aux_vpn_req;
         assign g_aux_vpn_req = (vs_pte_addr_reg >> 12 + ((LEVELS-g_lvl-1)*PAGE_LVL_BITS));
-        assign g_vpn_req[g_lvl] = g_aux_vpn_req[PAGE_LVL_BITS-1:0];
+        assign g_vpn_req[g_lvl] = g_stage_only ? vpn_req[g_lvl] : g_aux_vpn_req[PAGE_LVL_BITS-1:0];
     end
 endgenerate
 assign g_vpn_idx = g_vpn_req[count_q];
@@ -504,20 +505,21 @@ always_comb begin
         end
         S_VS_TO_G : begin
           is_g_stage = 1'b1;
+          if (g_stage_only) last_g_stage = 1'b1;
           vs_count_reg = count_d;
           vs_pte_addr_reg = aux_pte_addr[SIZE_VADDR:0] ; // For Sv39: (r_pte.ppn << 12) + (vpn_idx << 3)
           count_d = '0;
           ptw_tlb_comm.resp.virt_level   = count_q;
           ptw_tlb_comm.resp.virt_pte.ppn = resp_ppn;
           ptw_tlb_comm.resp.virt_pte.rfs = r_pte.rfs;
-          ptw_tlb_comm.resp.virt_pte.d = r_pte.d;
-          ptw_tlb_comm.resp.virt_pte.a = r_pte.a;
-          ptw_tlb_comm.resp.virt_pte.g = r_pte.g;
-          ptw_tlb_comm.resp.virt_pte.u = r_pte.u;
-          ptw_tlb_comm.resp.virt_pte.x = r_pte.x;
-          ptw_tlb_comm.resp.virt_pte.w = r_pte.w;
-          ptw_tlb_comm.resp.virt_pte.r = r_pte.r;
-          ptw_tlb_comm.resp.virt_pte.v = r_pte.v;
+          ptw_tlb_comm.resp.virt_pte.d = g_stage_only ? 1'b1 : r_pte.d;
+          ptw_tlb_comm.resp.virt_pte.a = g_stage_only ? 1'b1 : r_pte.a;
+          ptw_tlb_comm.resp.virt_pte.g = g_stage_only ? 1'b0 : r_pte.g;
+          ptw_tlb_comm.resp.virt_pte.u = g_stage_only ? 1'b0 : r_pte.u;
+          ptw_tlb_comm.resp.virt_pte.x = g_stage_only ? 1'b1 : r_pte.x;
+          ptw_tlb_comm.resp.virt_pte.w = g_stage_only ? 1'b1 : r_pte.w;
+          ptw_tlb_comm.resp.virt_pte.r = g_stage_only ? 1'b1 : r_pte.r;
+          ptw_tlb_comm.resp.virt_pte.v = g_stage_only ? 1'b1 : r_pte.v;
           next_state = S_REQ;
           if(aux_pte_addr[63:41] != {24{aux_pte_addr[40]}}) next_state = S_ERROR;
         end
