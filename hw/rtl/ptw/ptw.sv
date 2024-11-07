@@ -192,7 +192,8 @@ assign is_pte_sx = pte.v && pte.x && !pte.u;
 
 // Page Table Entry pointer for G-stage
 logic [63:0] g_aux_pte_addr;
-assign g_aux_pte_addr = (count_q == 0)? {{(64-(PPN_SIZE+PAGE_LVL_BITS+$clog2(XLEN/8))){1'b0}}, {csr_ptw_comm_i.hgatp[PPN_SIZE-1:2], g_vpn0_req, {{($clog2(XLEN/8))}{1'b0}}}}
+assign g_aux_pte_addr = (count_q == 0 && current_state != S_DONE) ? 
+                                      {{(64-(PPN_SIZE+PAGE_LVL_BITS+$clog2(XLEN/8))){1'b0}}, {csr_ptw_comm_i.hgatp[PPN_SIZE-1:2], g_vpn0_req, {{($clog2(XLEN/8))}{1'b0}}}}
                                     : {{(64-(PPN_SIZE+PAGE_LVL_BITS+$clog2(XLEN/8))){1'b0}}, {r_pte.ppn, g_vpn_idx, {{($clog2(XLEN/8))}{1'b0}}}};
 
 // Page Table Entry pointer
@@ -254,10 +255,14 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
         if (dmem_ptw_comm_i.resp.valid && is_pte_table && !pte_cache_hit) begin
             if (full_cache) begin
                 ptecache_entry[plru_eviction_idx].valid <= 1'b1;
+                ptecache_entry[plru_eviction_idx].g_enable <= is_virtualized_env & is_g_stage;
+                ptecache_entry[plru_eviction_idx].vs_enable <= is_virtualized_env & is_vs_stage;
                 ptecache_entry[plru_eviction_idx].tags <= pte_addr;
                 ptecache_entry[plru_eviction_idx].data <= pte.ppn;
             end else begin
                 ptecache_entry[priorityEncoder_idx].valid <= 1'b1;
+                ptecache_entry[priorityEncoder_idx].g_enable <= is_virtualized_env & is_g_stage;
+                ptecache_entry[priorityEncoder_idx].vs_enable <= is_virtualized_env & is_vs_stage;
                 ptecache_entry[priorityEncoder_idx].tags <= pte_addr;
                 ptecache_entry[priorityEncoder_idx].data <= pte.ppn;
             end
@@ -275,7 +280,10 @@ end
 
 always_comb begin
     for (int i = 0; i < PTW_CACHE_SIZE; i++) begin
-        hit_vector[i] = ((ptecache_entry[i].tags == pte_addr) && ptecache_entry[i].valid) ? 1'b1 : 1'b0;
+        hit_vector[i] = ((ptecache_entry[i].tags == pte_addr) &&
+                         (ptecache_entry[i].g_enable == (is_virtualized_env & is_g_stage)) &&
+                         (ptecache_entry[i].vs_enable == (is_virtualized_env & is_vs_stage)) &&
+                         ptecache_entry[i].valid) ? 1'b1 : 1'b0;
         valid_vector[i] = ptecache_entry[i].valid;
     end
 end
@@ -433,7 +441,7 @@ always_comb begin
     next_state = current_state;
     case (current_state)
         S_READY : begin
-            ptw_tlb_comm.resp.guest_pte = '0;
+            ptw_tlb_comm.resp.virt_pte = '0;
             count_d = '0;
             allow_vs_req = 1'b0;
             is_g_stage = 1'b0;
@@ -453,7 +461,7 @@ always_comb begin
                 ptw_dmem_comm_o.req.valid = 1'b0;
                 pmu_ptw_hit_o = 1'b1;
                 count_d = count[1:0];
-                allow_vs_req = 1'b0;
+                allow_vs_req = 1'b1;
                 next_state = S_REQ;
             end else if (dmem_ptw_comm_i.dmem_ready) begin
                 next_state = S_WAIT;
@@ -499,16 +507,17 @@ always_comb begin
           vs_count_reg = count_d;
           vs_pte_addr_reg = aux_pte_addr[SIZE_VADDR:0] ; // For Sv39: (r_pte.ppn << 12) + (vpn_idx << 3)
           count_d = '0;
-          ptw_tlb_comm.resp.guest_pte.ppn = resp_ppn;
-          ptw_tlb_comm.resp.guest_pte.rfs = r_pte.rfs;
-          ptw_tlb_comm.resp.guest_pte.d = r_pte.d;
-          ptw_tlb_comm.resp.guest_pte.a = r_pte.a;
-          ptw_tlb_comm.resp.guest_pte.g = r_pte.g;
-          ptw_tlb_comm.resp.guest_pte.u = r_pte.u;
-          ptw_tlb_comm.resp.guest_pte.x = r_pte.x;
-          ptw_tlb_comm.resp.guest_pte.w = r_pte.w;
-          ptw_tlb_comm.resp.guest_pte.r = r_pte.r;
-          ptw_tlb_comm.resp.guest_pte.v = r_pte.v;
+          ptw_tlb_comm.resp.virt_level   = count_q;
+          ptw_tlb_comm.resp.virt_pte.ppn = resp_ppn;
+          ptw_tlb_comm.resp.virt_pte.rfs = r_pte.rfs;
+          ptw_tlb_comm.resp.virt_pte.d = r_pte.d;
+          ptw_tlb_comm.resp.virt_pte.a = r_pte.a;
+          ptw_tlb_comm.resp.virt_pte.g = r_pte.g;
+          ptw_tlb_comm.resp.virt_pte.u = r_pte.u;
+          ptw_tlb_comm.resp.virt_pte.x = r_pte.x;
+          ptw_tlb_comm.resp.virt_pte.w = r_pte.w;
+          ptw_tlb_comm.resp.virt_pte.r = r_pte.r;
+          ptw_tlb_comm.resp.virt_pte.v = r_pte.v;
           next_state = S_REQ;
           if(aux_pte_addr[63:41] != {24{aux_pte_addr[40]}}) next_state = S_ERROR;
         end

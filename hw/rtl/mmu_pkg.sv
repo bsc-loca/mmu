@@ -154,8 +154,9 @@ typedef struct packed {
     logic                      valid; // Translation response valid.
     logic                      error; // An error has ocurred with the translation request. Only check if the response is valid.
     pte_t                      pte;   // Page table entry.
-    pte_t                      guest_pte;   // guest Page table entry.
+    pte_t                      virt_pte;   // virtual Page table entry.
     logic [$clog2(LEVELS)-1:0] level; // Page entry size: 2'b00 (1 GiB Page), 2'b01 (2 MiB Page), 2'b10 (4 KiB Page). 
+    logic [$clog2(LEVELS)-1:0] virt_level; // Page entry size: 2'b00 (1 GiB Page), 2'b01 (2 MiB Page), 2'b10 (4 KiB Page). 
 } ptw_tlb_resp_t;                     // PTW response to TLB translation request.
 
 typedef struct packed {
@@ -185,16 +186,18 @@ typedef struct packed {
     logic [ASID_SIZE-1:0]   asid;   // Address space identifier.
     logic [ASID_SIZE-2-1:0] vmid;   // virtual machine identifier.
     logic [PPN_SIZE-1:0]    ppn;    // Physical page number.
-    logic [PPN_SIZE-1:0]    guest_ppn;    // guest Physical page number.
+    logic [PPN_SIZE-1:0]    virt_ppn;    // virtual Physical page number.
     logic [1:0]             level;  // Page entry size: 2'b00 (1 GiB Page), 2'b01 (2 MiB Page), 2'b10 (4 KiB Page).
+    logic [1:0]             virt_level;  // Page entry size: 2'b00 (1 GiB Page), 2'b01 (2 MiB Page), 2'b10 (4 KiB Page).
     logic                   dirty;  // The page entry is set as dirty.
     logic                   access; // The page entry has been accessed.
-    logic                   guest_dirty;  // The guest page entry is set as dirty.
-    logic                   guest_access; // The guest page entry has been accessed.
+    logic                   virt_dirty;  // The virtual page entry is set as dirty.
+    logic                   virt_access; // The virtual page entry has been accessed.
     tlb_entry_permissions_t perms;  // TLB page entry permissions
-    tlb_entry_permissions_t guest_perms;  // TLB guest page entry permissions
+    tlb_entry_permissions_t virt_perms;  // TLB virtual page entry permissions
     logic                   valid;  // The tlb entry is valid, set to 1 when the PTW sends a translation response without errors.
     logic                   nempty; // The tlb entry is not empty, when the PTW sends a translation response that we don't have to ignore, it is set to 1.
+    logic                   is_two_stage; // The entry was a result of a two stage translation
 } tlb_entry_t;                      // TLB page entry.
 
 typedef struct packed {
@@ -214,6 +217,8 @@ typedef struct packed {
 //
 typedef struct packed {
     logic valid;
+    logic g_enable;
+    logic vs_enable;
     logic [SIZE_VADDR:0] tags;
     logic [PPN_SIZE-1:0] data;
 } ptw_ptecache_entry_t;
