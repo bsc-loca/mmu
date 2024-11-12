@@ -162,7 +162,8 @@ typedef struct packed {
 typedef struct packed {
     ptw_tlb_resp_t resp;            // PTW response to TLB translation request.
     logic          ptw_ready;       // PTW is ready to receive a translation request.
-    csr_mstatus_t  ptw_status;      // mstatus csr register value, sent through the ptw.    
+    csr_mstatus_t  ptw_mstatus;     // mstatus csr register value, sent through the ptw.    
+    csr_mstatus_t  ptw_vsstatus;    // vsstatus csr register value, sent through the ptw.  
     logic          invalidate_tlb;  // Signal to flush all entries in TLB and don't allocate in-progress transactions with the PTW.
 } ptw_tlb_comm_t;                   // Communication from to PTW to TLB.
 
@@ -279,6 +280,7 @@ typedef struct packed {
     logic [63:0] hgatp;
     logic flush;
     csr_mstatus_t mstatus;
+    csr_mstatus_t vsstatus;
 } csr_ptw_comm_t;
 
 endpackage

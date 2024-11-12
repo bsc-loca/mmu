@@ -363,21 +363,21 @@ assign sv_priv_lvl = (cache_tlb_comm_i.priv_lvl != '0) ? 1'b1 : 1'b0; // if we a
 // Read permission
 always_comb begin
     if (sv_priv_lvl & ~is_virtualized_env) begin // Virtualized force to user mode
-        if (ptw_tlb_comm_i.ptw_status.sum) begin // if SUM bit is set, in SV we can read in readable user pages
-            if (ptw_tlb_comm_i.ptw_status.mxr) begin // if MXR bit is set, executable pages can be also readed
+        if (ptw_tlb_comm_i.ptw_mstatus.sum) begin // if SUM bit is set, in SV we can read in readable user pages
+            if (ptw_tlb_comm_i.ptw_mstatus.mxr) begin // if MXR bit is set, executable pages can be also readed
                 read_ok = tlb_entries[hit_idx].perms.sr | tlb_entries[hit_idx].perms.ur | tlb_entries[hit_idx].perms.sx | tlb_entries[hit_idx].perms.ux;
             end else begin
                 read_ok = tlb_entries[hit_idx].perms.sr | tlb_entries[hit_idx].perms.ur;
             end
         end else begin
-            if (ptw_tlb_comm_i.ptw_status.mxr) begin // if MXR bit is set, executable pages can be also readed
+            if (ptw_tlb_comm_i.ptw_mstatus.mxr) begin // if MXR bit is set, executable pages can be also readed
                 read_ok = tlb_entries[hit_idx].perms.sr | tlb_entries[hit_idx].perms.sx;
             end else begin
                 read_ok = tlb_entries[hit_idx].perms.sr;
             end
         end
     end else begin // User mode
-        if (ptw_tlb_comm_i.ptw_status.mxr) begin // if MXR bit is set, executable pages can be also readed
+        if (ptw_tlb_comm_i.ptw_mstatus.mxr) begin // if MXR bit is set, executable pages can be also readed
             read_ok = tlb_entries[hit_idx].perms.ur | tlb_entries[hit_idx].perms.ux;
         end else begin
             read_ok = tlb_entries[hit_idx].perms.ur;
@@ -388,21 +388,21 @@ end
 // Virtual read permission
 always_comb begin
   if (sv_priv_lvl) begin
-      if (ptw_tlb_comm_i.ptw_status.sum) begin // if SUM bit is set, in SV we can read in readable user pages
-          if (ptw_tlb_comm_i.ptw_status.mxr) begin // if MXR bit is set, executable pages can be also readed
+      if (ptw_tlb_comm_i.ptw_vsstatus.sum) begin // if SUM bit is set, in SV we can read in readable user pages
+          if (ptw_tlb_comm_i.ptw_mstatus.mxr || ptw_tlb_comm_i.ptw_vsstatus.mxr) begin // if MXR bit is set, executable pages can be also readed
               virt_read_ok = tlb_entries[hit_idx].virt_perms.sr | tlb_entries[hit_idx].virt_perms.ur | tlb_entries[hit_idx].virt_perms.sx | tlb_entries[hit_idx].virt_perms.ux;
           end else begin
               virt_read_ok = tlb_entries[hit_idx].virt_perms.sr | tlb_entries[hit_idx].virt_perms.ur;
           end
       end else begin
-          if (ptw_tlb_comm_i.ptw_status.mxr) begin // if MXR bit is set, executable pages can be also readed
+          if (ptw_tlb_comm_i.ptw_mstatus.mxr || ptw_tlb_comm_i.ptw_vsstatus.mxr) begin // if MXR bit is set, executable pages can be also readed
               virt_read_ok = tlb_entries[hit_idx].virt_perms.sr | tlb_entries[hit_idx].virt_perms.sx;
           end else begin
               virt_read_ok = tlb_entries[hit_idx].virt_perms.sr;
           end
       end
   end else begin // User mode
-      if (ptw_tlb_comm_i.ptw_status.mxr) begin // if MXR bit is set, executable pages can be also readed
+      if (ptw_tlb_comm_i.ptw_mstatus.mxr || ptw_tlb_comm_i.ptw_vsstatus.mxr) begin // if MXR bit is set, executable pages can be also readed
           virt_read_ok = tlb_entries[hit_idx].virt_perms.ur | tlb_entries[hit_idx].virt_perms.ux;
       end else begin
           virt_read_ok = tlb_entries[hit_idx].virt_perms.ur;
@@ -413,7 +413,7 @@ end
 // Write permission
 always_comb begin
     if(sv_priv_lvl & ~is_virtualized_env) begin // Virtualized force to user mode
-        if (ptw_tlb_comm_i.ptw_status.sum) begin // if SUM bit is set, in SV we can write in writable user pages
+        if (ptw_tlb_comm_i.ptw_mstatus.sum) begin // if SUM bit is set, in SV we can write in writable user pages
             write_ok = tlb_entries[hit_idx].perms.sw | tlb_entries[hit_idx].perms.uw;
         end else begin
             write_ok = tlb_entries[hit_idx].perms.sw;
@@ -426,7 +426,7 @@ end
 // Virtual write permission
 always_comb begin
   if(sv_priv_lvl) begin
-      if (ptw_tlb_comm_i.ptw_status.sum) begin // if SUM bit is set, in SV we can write in writable user pages
+      if (ptw_tlb_comm_i.ptw_vsstatus.sum) begin // if SUM bit is set, in SV we can write in writable user pages
           virt_write_ok = tlb_entries[hit_idx].virt_perms.sw | tlb_entries[hit_idx].virt_perms.uw;
       end else begin
           virt_write_ok = tlb_entries[hit_idx].virt_perms.sw;

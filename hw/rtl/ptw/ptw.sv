@@ -418,7 +418,8 @@ assign ptw_tlb_comm.resp.pte.w = r_pte.w;
 assign ptw_tlb_comm.resp.pte.r = r_pte.r;
 assign ptw_tlb_comm.resp.pte.v = r_pte.v;
 assign ptw_tlb_comm.ptw_ready = ptw_ready;
-assign ptw_tlb_comm.ptw_status = csr_ptw_comm_i.mstatus;
+assign ptw_tlb_comm.ptw_mstatus = csr_ptw_comm_i.mstatus;
+assign ptw_tlb_comm.ptw_vsstatus = csr_ptw_comm_i.vsstatus;
 assign ptw_tlb_comm.invalidate_tlb = csr_ptw_comm_i.flush;
 
 // Page-Table Walker FSM 
