@@ -59,8 +59,8 @@ typedef enum logic [2:0] {
 } ptw_state;
 
 // Signal declaration
-logic [$clog2(LEVELS)-1:0] count_d, count_q;
-logic [$clog2(LEVELS):0] count;
+logic unsigned [$clog2(LEVELS)-1:0] count_d, count_q;
+logic unsigned [$clog2(LEVELS):0] count;
 
 ptw_tlb_comm_t ptw_tlb_comm; 
 tlb_ptw_comm_t tlb_ptw_comm; 
@@ -176,7 +176,7 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
     end else begin
         if ((current_state == S_WAIT) && dmem_ptw_comm_i.resp.valid) begin
             r_pte <= pte;
-        end else if ((current_state == S_REQ) && pte_cache_hit && (count_q < (LEVELS-1))) begin
+        end else if ((current_state == S_REQ) && pte_cache_hit && (count_q < $unsigned(LEVELS-1))) begin
             r_pte.ppn <= pte_cache_data; 
         end else if (ptw_ready & tlb_ptw_comm.req.valid) begin
             r_req <= tlb_ptw_comm.req;
@@ -191,9 +191,9 @@ end
 ptw_ptecache_entry_t [PTW_CACHE_SIZE-1:0] ptecache_entry;
 logic access_hit;
 logic full_cache;
-logic [$clog2(PTW_CACHE_SIZE)-1:0] hit_idx;
-logic [$clog2(PTW_CACHE_SIZE)-1:0] plru_eviction_idx;
-logic [$clog2(PTW_CACHE_SIZE)-1:0] priorityEncoder_idx;
+logic unsigned [$clog2(PTW_CACHE_SIZE)-1:0] hit_idx;
+logic unsigned [$clog2(PTW_CACHE_SIZE)-1:0] plru_eviction_idx;
+logic unsigned [$clog2(PTW_CACHE_SIZE)-1:0] priorityEncoder_idx;
 logic [PTW_CACHE_SIZE-1:0] valid_vector;
 logic [PTW_CACHE_SIZE-1:0] hit_vector;
 
@@ -254,7 +254,7 @@ always_comb begin
     found = 1'b0; // Control variable
     for (int i = 0; (i < PTW_CACHE_SIZE) && (!found); i++) begin
         if (hit_vector[i]) begin
-            hit_idx = trunc_ptw_cache_size(i);
+            hit_idx = $unsigned(trunc_ptw_cache_size($unsigned(i)));
             pte_cache_data = ptecache_entry[i].data;
             found = 1'b1;
         end
@@ -268,7 +268,7 @@ always_comb begin
     found2 = 1'b0;
     for (int i = 0; (i < PTW_CACHE_SIZE) && (!found2); i++) begin
         if (!valid_vector[i]) begin
-            priorityEncoder_idx = trunc_ptw_cache_size(i);
+            priorityEncoder_idx = trunc_ptw_cache_size($unsigned(i));
             found2 = 1'b1;
         end
     end
@@ -320,7 +320,7 @@ assign ptw_dmem_comm_o.req.cmd = M_XRD;
 assign ptw_dmem_comm_o.req.typ = MT_D;
 assign ptw_dmem_comm_o.req.addr = pte_addr;
 assign ptw_dmem_comm_o.req.kill = 1'b0;
-assign ptw_dmem_comm_o.req.data = { '0,
+assign ptw_dmem_comm_o.req.data = { {(64-$bits(pte_wdata)){1'b0}},
                                     pte_wdata.ppn, 
                                     pte_wdata.rfs, 
                                     pte_wdata.d,
@@ -337,13 +337,15 @@ assign ptw_dmem_comm_o.req.data = { '0,
 assign resp_err = (current_state == S_ERROR);
 assign resp_val = (current_state == S_DONE) || resp_err;
 
-assign r_resp_ppn = {'0, pte_addr[SIZE_VADDR-1:12]}; // pte_addr >> 12
-//assign r_resp_ppn = {{(64-(SIZE_VADDR-12)){1'b0}}, pte_addr[SIZE_VADDR-1:12]}; // pte_addr >> 12
+//assign r_resp_ppn = {'0, pte_addr[SIZE_VADDR-1:12]}; // pte_addr >> 12
+assign r_resp_ppn = {{(64-(SIZE_VADDR-12)){1'b0}}, pte_addr[SIZE_VADDR-1:12]}; // pte_addr >> 12
 genvar j;
 generate
     for (j = 0; j < (LEVELS-1); j++) begin
         logic [63:0] aux_resp_ppn_lvl;
-        assign aux_resp_ppn_lvl = {'0, {r_resp_ppn[63:(LEVELS-j-1)*PAGE_LVL_BITS], r_req.vpn[PAGE_LVL_BITS*(LEVELS-j-1)-1:0]}};
+        assign aux_resp_ppn_lvl = {{(64-$bits(r_resp_ppn[63:(LEVELS-j-1)*PAGE_LVL_BITS])-$bits(r_req.vpn[PAGE_LVL_BITS*(LEVELS-j-1)-1:0])){1'b0}}, 
+                                    r_resp_ppn[63:(LEVELS-j-1)*PAGE_LVL_BITS], 
+                                    r_req.vpn[PAGE_LVL_BITS*(LEVELS-j-1)-1:0]};
         assign resp_ppn_lvl[j] = aux_resp_ppn_lvl[PPN_SIZE-1:0];
     end
 endgenerate
@@ -395,7 +397,7 @@ always_comb begin
         end
         S_REQ : begin
             ptw_dmem_comm_o.req.valid = 1'b1;
-            if (pte_cache_hit && (count_q < (LEVELS-1))) begin
+            if (pte_cache_hit && (count_q < $unsigned(LEVELS-1))) begin
                 ptw_dmem_comm_o.req.valid = 1'b0;
                 pmu_ptw_hit_o = 1'b1;
                 count_d = count[1:0];
@@ -412,7 +414,7 @@ always_comb begin
             end else if (dmem_ptw_comm_i.resp.valid) begin
                 if (invalid_pte) begin
                     next_state = S_ERROR;
-                end else if (is_pte_table && (count_q < (LEVELS-1))) begin
+                end else if (is_pte_table && (count_q < $unsigned(LEVELS-1))) begin
                     count_d = count[1:0];
                     pmu_ptw_miss_o = 1'b1;
                     next_state = S_REQ;

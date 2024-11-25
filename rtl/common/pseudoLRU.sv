@@ -43,7 +43,7 @@ endfunction
 always_comb begin
     access_array = '0; // don't care if no 'in' bits set
     found = 0;
-    for (int i = 0; (i < ENTRIES) && (!found); i++) begin
+    for (int unsigned i = 0; (i < ENTRIES) && (!found); i++) begin
         if (i == access_idx_i) begin
             access_array[i] = 1'b1;
             found = 1;
@@ -81,17 +81,17 @@ always_comb begin : plru_replacement
     // lu_hit[0]: plru_tree_d[0, 1, 3] = {0, 0, 0};
     // default: begin /* No hit */ end
     // endcase
-    for (int i = 0; i < ENTRIES; i++) begin
-        automatic int idx_base = 0;
-        automatic int shift = 0;
+    for (int unsigned i = 0; i < ENTRIES; i++) begin
+        automatic int unsigned idx_base = 0;
+        automatic int unsigned shift = 0;
         automatic logic [31:0] new_index = '0;
         // we got a hit so update the pointer as it was least recently used
         if (access_array[i] & access_hit_i) begin
             // Set the nodes to the values we would expect
-            for (int lvl = 0; lvl < $clog2(ENTRIES); lvl++) begin
+            for (int unsigned lvl = 0; lvl < $unsigned($clog2(ENTRIES)); lvl++) begin
                 idx_base = $unsigned((2**lvl)-1);
                 // lvl0 <=> MSB, lvl1 <=> MSB-1, ...
-                shift = $clog2(ENTRIES) - lvl;
+                shift = $unsigned($clog2(ENTRIES)) - lvl;
                 // to circumvent the 32 bit integer arithmetic assignment
                 new_index =  ~((i >> (shift-1)) & 32'b1);
                 plru_tree_d[idx_base + (i >> shift)] = new_index[0];
@@ -113,14 +113,13 @@ always_comb begin : plru_replacement
     // the corresponding bit of the entry's index, this is
     // the next entry to replace.
     for (int unsigned i = 0; i < ENTRIES; i += 1) begin
-        automatic logic en;
-        automatic logic [31:0] new_index2;
+        automatic logic en = 1'b1;
+        automatic logic [31:0] new_index2 = '0;
         automatic int unsigned idx_base, shift;
-        en = 1'b1;
-        for (int unsigned lvl = 0; lvl < $clog2(ENTRIES); lvl++) begin
+        for (int unsigned lvl = 0; lvl < $unsigned($clog2(ENTRIES)); lvl++) begin
             idx_base = $unsigned((2**lvl)-1);
             // lvl0 <=> MSB, lvl1 <=> MSB-1, ...
-            shift = $clog2(ENTRIES) - lvl;
+            shift = $unsigned($clog2(ENTRIES)) - lvl;
 
             // en &= plru_tree_q[idx_base + (i>>shift)] == ((i >> (shift-1)) & 1'b1);
             new_index2 =  (i >> (shift-1)) & 32'b1;
@@ -147,7 +146,7 @@ end
 always_comb begin
     replacement_idx_o = '0; // don't care if no 'in' bits set
     found2 = 1'b0;
-    for (int iter = 0; (iter < ENTRIES) && (!found2); iter++) begin
+    for (int unsigned iter = 0; (iter < $unsigned(ENTRIES)) && (!found2); iter++) begin
         if (replace_en[iter] == 1'b1) begin
             replacement_idx_o = cast_integer(iter);
             found2 = 1'b1;
