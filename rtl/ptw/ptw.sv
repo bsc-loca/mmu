@@ -337,8 +337,7 @@ assign ptw_dmem_comm_o.req.data = { {(64-$bits(pte_wdata)){1'b0}},
 assign resp_err = (current_state == S_ERROR);
 assign resp_val = (current_state == S_DONE) || resp_err;
 
-//assign r_resp_ppn = {'0, pte_addr[SIZE_VADDR-1:12]}; // pte_addr >> 12
-assign r_resp_ppn = {{(64-(SIZE_VADDR-12)){1'b0}}, pte_addr[SIZE_VADDR-1:12]}; // pte_addr >> 12
+assign r_resp_ppn = {{(64-(SIZE_VADDR-11)){1'b0}}, pte_addr[SIZE_VADDR:12]}; // pte_addr >> 12
 genvar j;
 generate
     for (j = 0; j < (LEVELS-1); j++) begin
