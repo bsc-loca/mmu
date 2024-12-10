@@ -4,3 +4,4 @@
 ./rtl/ptw/ptw_arb.sv
 ./rtl/ptw/ptw.sv
 ./rtl/tlb/tlb.sv
+./rtl/bsc_mmu.sv
