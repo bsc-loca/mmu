@@ -42,7 +42,7 @@ import mmu_pkg::*;
 
 tlb_entry_t [TLB_ENTRIES-1:0] tlb_entries;
 
-logic is_virtualized_env;
+logic is_virtualized_env, vs_enable, g_enable;
 
 // Truncate function
 function [TLB_IDX_SIZE-1:0] trunc_tlb_idx_size(input [31:0] val_in);
@@ -89,7 +89,8 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
             tlb_entries[write_idx].valid <= !ptw_tlb_comm_i.resp.error;
             tlb_entries[write_idx].nempty <= 1'b1;
             // virtual ppn
-            tlb_entries[write_idx].is_two_stage <= is_virtualized_env;
+            tlb_entries[write_idx].g_enable <= is_virtualized_env && g_enable;
+            tlb_entries[write_idx].vs_enable <= is_virtualized_env && vs_enable;
             tlb_entries[write_idx].virt_ppn <= ptw_tlb_comm_i.resp.virt_pte.ppn;
             tlb_entries[write_idx].virt_level <= ptw_tlb_comm_i.resp.virt_level;
             tlb_entries[write_idx].virt_dirty <= ptw_tlb_comm_i.resp.virt_pte.d;
@@ -124,18 +125,18 @@ always_comb begin
     int i;
     if(is_virtualized_env) begin
         for (i = 0; i < TLB_ENTRIES; i++) begin
-            hits_g[i] = (tlb_entries[i].is_two_stage && (tlb_entries[i].vpn[26:18] == cache_vpn[26:18]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].level == GIGA_PAGE)) ? 1'b1 : 1'b0;
-            hits_m[i] = (tlb_entries[i].is_two_stage && (tlb_entries[i].vpn[26:9] == cache_vpn[26:9]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].level == MEGA_PAGE)) ? 1'b1 : 1'b0;
-            hits_k[i] = (tlb_entries[i].is_two_stage && (tlb_entries[i].vpn == cache_vpn[26:0]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].level == KILO_PAGE)) ? 1'b1 : 1'b0;
-            virt_hits_g[i] = (tlb_entries[i].is_two_stage && (tlb_entries[i].vpn[26:18] == cache_vpn[26:18]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].virt_level == GIGA_PAGE)) ? 1'b1 : 1'b0;
-            virt_hits_m[i] = (tlb_entries[i].is_two_stage && (tlb_entries[i].vpn[26:9] == cache_vpn[26:9]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].virt_level == MEGA_PAGE)) ? 1'b1 : 1'b0;
-            virt_hits_k[i] = (tlb_entries[i].is_two_stage && (tlb_entries[i].vpn == cache_vpn[26:0]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].virt_level == KILO_PAGE)) ? 1'b1 : 1'b0;
+            hits_g[i] = ((tlb_entries[i].vs_enable == vs_enable && tlb_entries[i].g_enable == g_enable) && (tlb_entries[i].vpn[26:18] == cache_vpn[26:18]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].level == GIGA_PAGE)) ? 1'b1 : 1'b0;
+            hits_m[i] = ((tlb_entries[i].vs_enable == vs_enable && tlb_entries[i].g_enable == g_enable) && (tlb_entries[i].vpn[26:9] == cache_vpn[26:9]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].level == MEGA_PAGE)) ? 1'b1 : 1'b0;
+            hits_k[i] = ((tlb_entries[i].vs_enable == vs_enable && tlb_entries[i].g_enable == g_enable) && (tlb_entries[i].vpn == cache_vpn[26:0]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].level == KILO_PAGE)) ? 1'b1 : 1'b0;
+            virt_hits_g[i] = ((tlb_entries[i].vs_enable == vs_enable && tlb_entries[i].g_enable == g_enable) && (tlb_entries[i].vpn[26:18] == cache_vpn[26:18]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].virt_level == GIGA_PAGE)) ? 1'b1 : 1'b0;
+            virt_hits_m[i] = ((tlb_entries[i].vs_enable == vs_enable && tlb_entries[i].g_enable == g_enable) && (tlb_entries[i].vpn[26:9] == cache_vpn[26:9]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].virt_level == MEGA_PAGE)) ? 1'b1 : 1'b0;
+            virt_hits_k[i] = ((tlb_entries[i].vs_enable == vs_enable && tlb_entries[i].g_enable == g_enable) && (tlb_entries[i].vpn == cache_vpn[26:0]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].virt_level == KILO_PAGE)) ? 1'b1 : 1'b0;
         end
     end else begin
         for (i = 0; i < TLB_ENTRIES; i++) begin
-            hits_g[i] = (~tlb_entries[i].is_two_stage && (tlb_entries[i].vpn[26:18] == cache_vpn[26:18]) && (tlb_entries[i].asid == cache_asid) && tlb_entries[i].nempty && (tlb_entries[i].level == GIGA_PAGE)) ? 1'b1 : 1'b0;
-            hits_m[i] = (~tlb_entries[i].is_two_stage && (tlb_entries[i].vpn[26:9] == cache_vpn[26:9]) && (tlb_entries[i].asid == cache_asid) && tlb_entries[i].nempty && (tlb_entries[i].level == MEGA_PAGE)) ? 1'b1 : 1'b0;
-            hits_k[i] = (~tlb_entries[i].is_two_stage && (tlb_entries[i].vpn == cache_vpn[26:0]) && (tlb_entries[i].asid == cache_asid) && tlb_entries[i].nempty && (tlb_entries[i].level == KILO_PAGE)) ? 1'b1 : 1'b0;
+            hits_g[i] = (!(tlb_entries[i].vs_enable || tlb_entries[i].g_enable) && (tlb_entries[i].vpn[26:18] == cache_vpn[26:18]) && (tlb_entries[i].asid == cache_asid) && tlb_entries[i].nempty && (tlb_entries[i].level == GIGA_PAGE)) ? 1'b1 : 1'b0;
+            hits_m[i] = (!(tlb_entries[i].vs_enable || tlb_entries[i].g_enable) && (tlb_entries[i].vpn[26:9] == cache_vpn[26:9]) && (tlb_entries[i].asid == cache_asid) && tlb_entries[i].nempty && (tlb_entries[i].level == MEGA_PAGE)) ? 1'b1 : 1'b0;
+            hits_k[i] = (!(tlb_entries[i].vs_enable || tlb_entries[i].g_enable) && (tlb_entries[i].vpn == cache_vpn[26:0]) && (tlb_entries[i].asid == cache_asid) && tlb_entries[i].nempty && (tlb_entries[i].level == KILO_PAGE)) ? 1'b1 : 1'b0;
             virt_hits_g[i] = '0;
             virt_hits_m[i] = '0;
             virt_hits_k[i] = '0;
@@ -168,7 +169,7 @@ end
 // HIT LOGIC
 ///////////////////////////////
 
-logic tlb_hit, tlb_miss, store_hit, vm_enable, vs_enable, g_enable, tlb_entry_access_is_zero, tlb_entry_dirty_is_zero, tlb_entry_virt_access_is_zero, tlb_entry_virt_dirty_is_zero, passthrough;
+logic tlb_hit, tlb_miss, store_hit, vm_enable, tlb_entry_access_is_zero, tlb_entry_dirty_is_zero, tlb_entry_virt_access_is_zero, tlb_entry_virt_dirty_is_zero, passthrough;
 
 logic read_ok, write_ok, exec_ok, sv_priv_lvl; // value chagned by permission checking logic
 logic virt_read_ok, virt_write_ok, virt_exec_ok;
@@ -179,10 +180,10 @@ assign g_enable  = cache_tlb_comm_i.g_enable;
 assign is_virtualized_env = vs_enable | g_enable;
 assign passthrough = cache_tlb_comm_i.req.passthrough;
 
-assign tlb_entry_access_is_zero = (tlb_entries[hit_idx].is_two_stage == is_virtualized_env) ? !tlb_entries[hit_idx].access && tlb_entries[hit_idx].valid : '0;
-assign tlb_entry_virt_access_is_zero = (tlb_entries[hit_idx].is_two_stage == is_virtualized_env) ? !tlb_entries[hit_idx].virt_access && tlb_entries[hit_idx].valid : '0;
-assign tlb_entry_dirty_is_zero = (tlb_entries[hit_idx].is_two_stage == is_virtualized_env) ? !store_hit && tlb_entries[hit_idx].valid : '0;
-assign tlb_entry_virt_dirty_is_zero = (tlb_entries[hit_idx].is_two_stage == is_virtualized_env) ? !(~cache_tlb_comm_i.req.store | (cache_tlb_comm_i.req.store & (tlb_entries[hit_idx].virt_dirty | ~virt_write_ok))) && tlb_entries[hit_idx].valid : '0;
+assign tlb_entry_access_is_zero = (tlb_entries[hit_idx].vs_enable == vs_enable && tlb_entries[hit_idx].g_enable == g_enable) ? !tlb_entries[hit_idx].access && tlb_entries[hit_idx].valid : '0;
+assign tlb_entry_virt_access_is_zero = (tlb_entries[hit_idx].vs_enable == vs_enable && tlb_entries[hit_idx].g_enable == g_enable) ? !tlb_entries[hit_idx].virt_access && tlb_entries[hit_idx].valid : '0;
+assign tlb_entry_dirty_is_zero = (tlb_entries[hit_idx].vs_enable == vs_enable && tlb_entries[hit_idx].g_enable == g_enable) ? !store_hit && tlb_entries[hit_idx].valid : '0;
+assign tlb_entry_virt_dirty_is_zero = (tlb_entries[hit_idx].vs_enable == vs_enable && tlb_entries[hit_idx].g_enable == g_enable) ? !(~cache_tlb_comm_i.req.store | (cache_tlb_comm_i.req.store & (tlb_entries[hit_idx].virt_dirty | ~virt_write_ok))) && tlb_entries[hit_idx].valid : '0;
 
 assign tlb_hit = vm_enable && hit_cam && store_hit;
 assign tlb_miss = vm_enable && !(hit_cam);
@@ -444,22 +445,22 @@ assign virt_exec_ok = (sv_priv_lvl) ? tlb_entries[hit_idx].virt_perms.sx : tlb_e
 
 logic xcpt_if, xcpt_st, xcpt_ld;
 assign xcpt_if = (vm_enable && 
-                      ((~is_virtualized_env && ((tlb_hit && !exec_ok) || tlb_entry_access_is_zero))
-                    || (is_virtualized_env && ((tlb_hit && !virt_exec_ok) || tlb_entry_virt_access_is_zero)))
+                      ((~(tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !exec_ok) || tlb_entry_access_is_zero))
+                    || (tlb_entries[hit_idx].g_enable && ((tlb_hit && !virt_exec_ok) || tlb_entry_virt_access_is_zero)))
                   ) ? 1'b1 : 1'b0;
 assign xcpt_st = (vm_enable && 
-                      ((~is_virtualized_env && ((tlb_hit && !write_ok) || tlb_entry_access_is_zero || tlb_entry_dirty_is_zero))
-                    || (is_virtualized_env && ((tlb_hit && !virt_write_ok) || tlb_entry_virt_access_is_zero || tlb_entry_virt_dirty_is_zero)))
+                      ((~(tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !write_ok) || tlb_entry_access_is_zero || tlb_entry_dirty_is_zero))
+                    || (tlb_entries[hit_idx].g_enable && ((tlb_hit && !virt_write_ok) || tlb_entry_virt_access_is_zero || tlb_entry_virt_dirty_is_zero)))
                   ) ? 1'b1 : 1'b0;
 assign xcpt_ld = (vm_enable && 
-                      ((~is_virtualized_env && ((tlb_hit && !read_ok) || tlb_entry_access_is_zero))
-                    || (is_virtualized_env && ((tlb_hit && !virt_read_ok) || tlb_entry_virt_access_is_zero)))
+                      ((~(tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !read_ok) || tlb_entry_access_is_zero))
+                    || (tlb_entries[hit_idx].g_enable && ((tlb_hit && !virt_read_ok) || tlb_entry_virt_access_is_zero)))
                   ) ? 1'b1 : 1'b0;
 
 logic guest_xcpt_if, guest_xcpt_st, guest_xcpt_ld;
-assign guest_xcpt_if = (vm_enable && is_virtualized_env && ((tlb_hit && !exec_ok) || tlb_entry_access_is_zero)) ? 1'b1 : 1'b0;
-assign guest_xcpt_st = (vm_enable && is_virtualized_env && ((tlb_hit && !write_ok) || tlb_entry_access_is_zero || tlb_entry_dirty_is_zero)) ? 1'b1 : 1'b0;
-assign guest_xcpt_ld = (vm_enable && is_virtualized_env && ((tlb_hit && !read_ok) || tlb_entry_access_is_zero)) ? 1'b1 : 1'b0;
+assign guest_xcpt_if = (vm_enable && (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !exec_ok) || tlb_entry_access_is_zero)) ? 1'b1 : 1'b0;
+assign guest_xcpt_st = (vm_enable && (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !write_ok) || tlb_entry_access_is_zero || tlb_entry_dirty_is_zero)) ? 1'b1 : 1'b0;
+assign guest_xcpt_ld = (vm_enable && (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !read_ok) || tlb_entry_access_is_zero)) ? 1'b1 : 1'b0;
 
 // PPN ASSIGNAMENT
 ///////////////////////////////
@@ -472,17 +473,17 @@ logic [PPN_SIZE-1:0] virt_ppn_k, virt_ppn_m, virt_ppn_g, virt_ppn;
 // therefore, it is required exctracting the page number in its real size and fill the 0s with the 
 // corresponding bits of the vpn to get the correct translation
 
-assign virt_ppn_k = is_virtualized_env ? tlb_entries[hit_idx].virt_ppn : '0;
-assign virt_ppn_m = is_virtualized_env ? {tlb_entries[hit_idx].virt_ppn >> PAGE_LVL_BITS, cache_vpn[PAGE_LVL_BITS-1:0]} : '0;
-assign virt_ppn_g = is_virtualized_env ? {tlb_entries[hit_idx].virt_ppn >> (PAGE_LVL_BITS * 2), cache_vpn[PAGE_LVL_BITS*2-1:0]} : '0;
-assign virt_ppn = is_virtualized_env ?
+assign virt_ppn_k = tlb_entries[hit_idx].g_enable ? tlb_entries[hit_idx].virt_ppn : '0;
+assign virt_ppn_m = tlb_entries[hit_idx].g_enable ? {tlb_entries[hit_idx].virt_ppn >> PAGE_LVL_BITS, cache_vpn[PAGE_LVL_BITS-1:0]} : '0;
+assign virt_ppn_g = tlb_entries[hit_idx].g_enable ? {tlb_entries[hit_idx].virt_ppn >> (PAGE_LVL_BITS * 2), cache_vpn[PAGE_LVL_BITS*2-1:0]} : '0;
+assign virt_ppn = tlb_entries[hit_idx].g_enable ?
     (((virt_ppn_k & {PPN_SIZE{virt_hit_k & vm_enable & ~passthrough}}) | (virt_ppn_m & {PPN_SIZE{virt_hit_m & vm_enable & ~passthrough}})) |
     ((virt_ppn_g & {PPN_SIZE{virt_hit_g & vm_enable & ~passthrough}}) | {{(PPN_SIZE-VPN_SIZE-1){1'b0}}, cache_vpn & {(VPN_SIZE+1){~(vm_enable & ~passthrough)}}})) : '0;
 
 assign ppn_k = tlb_entries[hit_idx].ppn;
-assign ppn_m = is_virtualized_env ? {tlb_entries[hit_idx].ppn >> PAGE_LVL_BITS, virt_ppn[PAGE_LVL_BITS-1:0]}
+assign ppn_m = (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) ? {tlb_entries[hit_idx].ppn >> PAGE_LVL_BITS, virt_ppn[PAGE_LVL_BITS-1:0]}
                                   : {tlb_entries[hit_idx].ppn >> PAGE_LVL_BITS, cache_vpn[PAGE_LVL_BITS-1:0]};
-assign ppn_g = is_virtualized_env ? {tlb_entries[hit_idx].ppn >> (PAGE_LVL_BITS * 2), virt_ppn[PAGE_LVL_BITS*2-1:0]}
+assign ppn_g = (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) ? {tlb_entries[hit_idx].ppn >> (PAGE_LVL_BITS * 2), virt_ppn[PAGE_LVL_BITS*2-1:0]}
                                   : {tlb_entries[hit_idx].ppn >> (PAGE_LVL_BITS * 2), cache_vpn[PAGE_LVL_BITS*2-1:0]};
 
 // TLB RESPONSE
@@ -496,9 +497,9 @@ assign tlb_cache_comm_o.resp.xcpt.load = xcpt_ld;
 assign tlb_cache_comm_o.resp.xcpt.store = xcpt_st;
 assign tlb_cache_comm_o.resp.xcpt.fetch = xcpt_if;
 
-assign tlb_cache_comm_o.resp.guest_xcpt.load = is_virtualized_env & guest_xcpt_ld;
-assign tlb_cache_comm_o.resp.guest_xcpt.store = is_virtualized_env & guest_xcpt_st;
-assign tlb_cache_comm_o.resp.guest_xcpt.fetch = is_virtualized_env & guest_xcpt_if;
+assign tlb_cache_comm_o.resp.guest_xcpt.load = tlb_entries[hit_idx].g_enable & guest_xcpt_ld;
+assign tlb_cache_comm_o.resp.guest_xcpt.store = tlb_entries[hit_idx].g_enable & guest_xcpt_st;
+assign tlb_cache_comm_o.resp.guest_xcpt.fetch = tlb_entries[hit_idx].g_enable & guest_xcpt_if;
 
 assign tlb_cache_comm_o.tlb_ready = tlb_ready; 
 

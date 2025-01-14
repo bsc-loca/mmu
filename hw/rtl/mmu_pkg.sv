@@ -198,7 +198,8 @@ typedef struct packed {
     tlb_entry_permissions_t virt_perms;  // TLB virtual page entry permissions
     logic                   valid;  // The tlb entry is valid, set to 1 when the PTW sends a translation response without errors.
     logic                   nempty; // The tlb entry is not empty, when the PTW sends a translation response that we don't have to ignore, it is set to 1.
-    logic                   is_two_stage; // The entry was a result of a two stage translation
+    logic                   g_enable;
+    logic                   vs_enable;
 } tlb_entry_t;                      // TLB page entry.
 
 typedef struct packed {

@@ -146,11 +146,11 @@ assign vpn_idx = vpn_req[count_q];
 // VPN indexation depending on the page level for G-stage
 genvar g_lvl;
 generate
-    assign g_vpn0_req = g_stage_only ? {2'b0, vpn_req[0]} : (vs_pte_addr_reg_q >> 12 + ((LEVELS-1)*PAGE_LVL_BITS));
+    assign g_vpn0_req = g_stage_only ? {2'b0, vpn_req[0]} : ({'0, vs_pte_addr_reg_q[SIZE_VADDR-1:12 + ((LEVELS-1)*PAGE_LVL_BITS)]});
     assign g_vpn_req[0] = '0;
     for (g_lvl = 1; g_lvl < LEVELS; g_lvl++) begin
         logic [VPN_SIZE-1:0] g_aux_vpn_req;
-        assign g_aux_vpn_req = (vs_pte_addr_reg_q >> 12 + ((LEVELS-g_lvl-1)*PAGE_LVL_BITS));
+        assign g_aux_vpn_req = ({'0, vs_pte_addr_reg_q[SIZE_VADDR-1:12 + ((LEVELS-g_lvl-1)*PAGE_LVL_BITS)]});
         assign g_vpn_req[g_lvl] = g_stage_only ? vpn_req[g_lvl] : g_aux_vpn_req[PAGE_LVL_BITS-1:0];
     end
 endgenerate
@@ -197,7 +197,7 @@ assign is_pte_sx = pte.v && pte.x && !pte.u;
 
 // Page Table Entry pointer for G-stage
 logic [63:0] g_aux_pte_addr;
-assign g_aux_pte_addr = (count_q == 0 && current_state != S_DONE) ? 
+assign g_aux_pte_addr = (count_q == 0 && (current_state != S_DONE && current_state != S_G_TO_VS)) ? 
                                       {{(64-(PPN_SIZE+PAGE_LVL_BITS+$clog2(XLEN/8))){1'b0}}, {csr_ptw_comm_i.hgatp[PPN_SIZE-1:2], g_vpn0_req, {{($clog2(XLEN/8))}{1'b0}}}}
                                     : {{(64-(PPN_SIZE+PAGE_LVL_BITS+$clog2(XLEN/8))){1'b0}}, {r_pte.ppn, g_vpn_idx, {{($clog2(XLEN/8))}{1'b0}}}};
 
