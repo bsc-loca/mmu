@@ -217,7 +217,7 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
     end else begin
         if ((current_state == S_WAIT) && dmem_ptw_comm_i.resp.valid) begin
             r_pte <= pte;
-        end else if ((current_state == S_REQ) && pte_cache_hit && (count_q < $unsigned(LEVELS-1))) begin
+        end else if ((current_state == S_REQ) && pte_cache_hit && (count_q < $unsigned(LEVELS-1)) && !(is_virtualized_env & is_vs_stage & ~allow_vs_req_q)) begin
             r_pte.ppn <= pte_cache_data; 
         end else if (ptw_ready & tlb_ptw_comm.req.valid) begin
             r_req <= tlb_ptw_comm.req;
@@ -272,7 +272,7 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
                 ptecache_entry[priorityEncoder_idx].data <= pte.ppn;
             end
         end
-        else if (pte_cache_hit && (current_state == S_REQ)) begin
+        else if (pte_cache_hit && (current_state == S_REQ && !(is_virtualized_env & is_vs_stage & ~allow_vs_req_q))) begin
             access_hit <= 1'b1;
         end
         else if (csr_ptw_comm_i.flush) begin
@@ -287,7 +287,7 @@ always_comb begin
     for (int i = 0; i < PTW_CACHE_SIZE; i++) begin
         hit_vector[i] = ((ptecache_entry[i].tags == pte_addr) &&
                          (ptecache_entry[i].g_enable == (is_virtualized_env & is_g_stage_q)) &&
-                         (ptecache_entry[i].vs_enable == (is_virtualized_env & is_vs_stage)) &&
+                         (ptecache_entry[i].vs_enable == (is_virtualized_env & is_vs_stage) && !(is_virtualized_env & is_vs_stage & ~allow_vs_req_q)) &&
                          ptecache_entry[i].valid) ? 1'b1 : 1'b0;
         valid_vector[i] = ptecache_entry[i].valid;
     end
@@ -433,24 +433,24 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
     if (!rstn_i) begin
         current_state <= S_READY;
         count_q <= '0;
-        allow_vs_req_q = 1'b0;
-        is_g_stage_q = 1'b0;
-        vs_pte_addr_reg_q = '0;
-        vs_count_reg_q = '0;
-        last_g_stage_q = '0;
-        virt_pte_q = '0;
-        virt_level_q = 0;
+        allow_vs_req_q <= 1'b0;
+        is_g_stage_q <= 1'b0;
+        vs_pte_addr_reg_q <= '0;
+        vs_count_reg_q <= '0;
+        last_g_stage_q <= '0;
+        virt_pte_q <= '0;
+        virt_level_q <= 0;
     end
     else begin
         current_state <= next_state;
         count_q <= count_d;
-        allow_vs_req_q = allow_vs_req_d;
-        is_g_stage_q = is_g_stage_d;
-        vs_pte_addr_reg_q = vs_pte_addr_reg_d;
-        vs_count_reg_q = vs_count_reg_d;
-        last_g_stage_q = last_g_stage_d;
-        virt_pte_q = virt_pte_d;
-        virt_level_q = virt_level_d;
+        allow_vs_req_q <= allow_vs_req_d;
+        is_g_stage_q <= is_g_stage_d;
+        vs_pte_addr_reg_q <= vs_pte_addr_reg_d;
+        vs_count_reg_q <= vs_count_reg_d;
+        last_g_stage_q <= last_g_stage_d;
+        virt_pte_q <= virt_pte_d;
+        virt_level_q <= virt_level_d;
     end
 end
 
