@@ -137,7 +137,7 @@ genvar lvl;
 generate
     for (lvl = 0; lvl < LEVELS; lvl++) begin
         logic [VPN_SIZE-1:0] aux_vpn_req;
-        assign aux_vpn_req = (r_req.vpn >> ((LEVELS-lvl-1)*PAGE_LVL_BITS));
+        assign aux_vpn_req = (r_req.vpn[VPN_SIZE-1:0] >> ((LEVELS-lvl-1)*PAGE_LVL_BITS));
         assign vpn_req[lvl] = aux_vpn_req[PAGE_LVL_BITS-1:0];
     end
 endgenerate
@@ -146,10 +146,10 @@ assign vpn_idx = vpn_req[count_q];
 // VPN indexation depending on the page level for G-stage
 genvar g_lvl;
 generate
-    assign g_vpn0_req = g_stage_only ? {2'b0, vpn_req[0]} : ({'0, vs_pte_addr_reg_q[SIZE_VADDR-1:12 + ((LEVELS-1)*PAGE_LVL_BITS)]});
+    assign g_vpn0_req = g_stage_only ? (r_req.vpn[VPN_MAX_SIZE-1:0] >> ((LEVELS-1)*PAGE_LVL_BITS)) : ({'0, vs_pte_addr_reg_q[SIZE_VADDR-1:12 + ((LEVELS-1)*PAGE_LVL_BITS)]});
     assign g_vpn_req[0] = '0;
     for (g_lvl = 1; g_lvl < LEVELS; g_lvl++) begin
-        logic [VPN_SIZE-1:0] g_aux_vpn_req;
+        logic [VPN_MAX_SIZE-1:0] g_aux_vpn_req;
         assign g_aux_vpn_req = ({'0, vs_pte_addr_reg_q[SIZE_VADDR-1:12 + ((LEVELS-g_lvl-1)*PAGE_LVL_BITS)]});
         assign g_vpn_req[g_lvl] = g_stage_only ? vpn_req[g_lvl] : g_aux_vpn_req[PAGE_LVL_BITS-1:0];
     end
@@ -550,7 +550,7 @@ always_comb begin
           virt_pte_d.r = g_stage_only ? 1'b1 : r_pte.r;
           virt_pte_d.v = g_stage_only ? 1'b1 : r_pte.v;
           next_state = S_REQ;
-          if(aux_pte_addr[63:41] != {24{aux_pte_addr[40]}}) next_state = S_ERROR;
+          if(|aux_pte_addr[63:41]) next_state = S_ERROR; // Translation is a G-stage: Address bits 63:41 must all be zeros, or else a guest-page-fault exception occurs
         end
         S_G_TO_VS : begin
           is_g_stage_d = 1'b0;

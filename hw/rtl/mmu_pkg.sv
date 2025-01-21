@@ -25,6 +25,7 @@ parameter XLEN = 64;
 
 // SV39 Parameters
 parameter VPN_SIZE = 27;
+parameter VPN_MAX_SIZE = 29;
 parameter PPN_SIZE = 44;
 parameter SIZE_VADDR = 42; // This is used as the size of physical addresses
 parameter ASID_SIZE = 7;
@@ -92,7 +93,7 @@ typedef struct packed {
     logic                 valid;        // Translation request valid.
     logic [ASID_SIZE-1:0] asid;         // Address space identifier.
     logic [ASID_SIZE-2-1:0] vmid;       // virtual machine identifier.
-    logic [VPN_SIZE:0]    vpn;          // Virtual page number.
+    logic [VPN_MAX_SIZE:0]  vpn;        // Virtual page number.
     logic                 passthrough;  // Virtual address directly corresponds to physical address, for direct assignment between a virtual machine and the physical device.
     logic                 instruction;  // The translation request is for a instruction fetch address.
     logic                 store;        // The translation request is for a store address.
@@ -135,7 +136,7 @@ typedef struct packed {
 // TLB-PTW request
 typedef struct packed {
     logic                 valid;    // Translation request valid.
-    logic [VPN_SIZE-1:0]  vpn;      // Virtual page number.
+    logic [VPN_MAX_SIZE-1:0] vpn;   // Virtual page number.
     logic [ASID_SIZE-1:0] asid;     // Address space identifier. 
     logic [ASID_SIZE-2-1:0] vmid;   // virtual machine identifier. 
     logic [1:0]           prv;      // Privilege level of the translation: 2'b00 (User), 2'b01 (Supervisor), 2'b11 (Machine).
@@ -183,7 +184,7 @@ typedef struct packed {
 } tlb_entry_permissions_t;  // TLB page entry permissions.
 
 typedef struct packed {
-    logic [VPN_SIZE-1:0]    vpn;    // Virtual page number.
+    logic [VPN_MAX_SIZE-1:0] vpn;   // Virtual page number.
     logic [ASID_SIZE-1:0]   asid;   // Address space identifier.
     logic [ASID_SIZE-2-1:0] vmid;   // virtual machine identifier.
     logic [PPN_SIZE-1:0]    ppn;    // Physical page number.
@@ -203,7 +204,7 @@ typedef struct packed {
 } tlb_entry_t;                      // TLB page entry.
 
 typedef struct packed {
-    logic [VPN_SIZE-1:0]        vpn;        // Virtual page number.
+    logic [VPN_MAX_SIZE-1:0]    vpn;        // Virtual page number.
     logic [ASID_SIZE-1:0]       asid;       // Address space identifier.
     logic [ASID_SIZE-2-1:0]     vmid;       // virtual machine identifier.
     logic                       store;      // Store operation.
