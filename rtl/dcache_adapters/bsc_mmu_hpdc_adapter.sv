@@ -86,6 +86,7 @@ import mmu_pkg::*;
         req_dcache_o.phys_indexed = 1'b1;
         req_dcache_o.pma.io = 1'b0;
         req_dcache_o.pma.uncacheable = 1'b0;
+        req_dcache_o.pma.wr_policy_hint = hpdcache_pkg::HPDCACHE_WR_POLICY_AUTO;
 
         req_dcache_abort_o = 1'b0;
         req_dcache_tag_o = '0;
