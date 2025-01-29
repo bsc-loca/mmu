@@ -250,6 +250,27 @@ always_comb begin
     if (ptw_tlb_comm_i.invalidate_tlb) begin 
         clear_tlb = 1'b1;
         clear_mask = 'hFF;
+    end else if (ptw_tlb_comm_i.invalidate_tlb_satp) begin 
+        clear_tlb = 1'b1;
+        for (int i=0; i<TLB_ENTRIES; ++i) begin
+            if ((tlb_entries[i].valid && !tlb_entries[i].vs_enable && !tlb_entries[i].g_enable)) begin
+                clear_mask[i] = 1'b1; // invalidate the hypervisor level TLB entries
+            end 
+        end
+    end else if (ptw_tlb_comm_i.invalidate_tlb_vsatp) begin 
+        clear_tlb = 1'b1;
+        for (int i=0; i<TLB_ENTRIES; ++i) begin
+            if ((tlb_entries[i].valid && tlb_entries[i].vs_enable)) begin
+                clear_mask[i] = 1'b1; // invalidate the guest level TLB entries
+            end 
+        end
+    end else if (ptw_tlb_comm_i.invalidate_tlb_hgatp) begin 
+        clear_tlb = 1'b1;
+        for (int i=0; i<TLB_ENTRIES; ++i) begin
+            if ((tlb_entries[i].valid && tlb_entries[i].g_enable)) begin
+                clear_mask[i] = 1'b1; // invalidate the guest level TLB entries
+            end 
+        end
     end else if (clean_tlb) begin // flush invalid entries and cam hit in a non-dirty page when store arrives
         clear_tlb = 1'b1;
         for (int i=0; i<TLB_ENTRIES; ++i) begin
@@ -298,10 +319,10 @@ always_comb begin
         end
         SEND_REQUEST : begin
             send_tlb_req = 1'b1; // send stored request to PTW
-            if (!ptw_tlb_comm_i.ptw_ready && ptw_tlb_comm_i.invalidate_tlb) begin
+            if (!ptw_tlb_comm_i.ptw_ready && (ptw_tlb_comm_i.invalidate_tlb || ptw_tlb_comm_i.invalidate_tlb_satp || ptw_tlb_comm_i.invalidate_tlb_vsatp || ptw_tlb_comm_i.invalidate_tlb_hgatp)) begin
                 next_state = IDLE; // TLB request cancelled
             end else if (ptw_tlb_comm_i.ptw_ready) begin
-                if (ptw_tlb_comm_i.invalidate_tlb) begin
+                if (ptw_tlb_comm_i.invalidate_tlb || ptw_tlb_comm_i.invalidate_tlb_satp || ptw_tlb_comm_i.invalidate_tlb_vsatp || ptw_tlb_comm_i.invalidate_tlb_hgatp) begin
                     next_state = INVALIDATED_WAIT_RESPONSE; 
                 end else begin
                     next_state = WAIT_RESPONSE;    // go to waiting for response state
@@ -312,7 +333,7 @@ always_comb begin
             if (ptw_tlb_comm_i.resp.valid) begin
                 write_tlb = 1'b1;
                 next_state = IDLE;
-            end else if (ptw_tlb_comm_i.invalidate_tlb) begin
+            end else if (ptw_tlb_comm_i.invalidate_tlb || ptw_tlb_comm_i.invalidate_tlb_satp || ptw_tlb_comm_i.invalidate_tlb_vsatp || ptw_tlb_comm_i.invalidate_tlb_hgatp) begin
                 next_state = INVALIDATED_WAIT_RESPONSE; 
             end
         end

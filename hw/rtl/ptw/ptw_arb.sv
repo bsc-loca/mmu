@@ -86,8 +86,14 @@ always_comb begin
     ptw_dtlb_comm_o.ptw_mstatus  = ptw_tlb_comm_i.ptw_mstatus;
     ptw_dtlb_comm_o.ptw_vsstatus = ptw_tlb_comm_i.ptw_vsstatus;
     
-    ptw_itlb_comm_o.invalidate_tlb = ptw_tlb_comm_i.invalidate_tlb;
-    ptw_dtlb_comm_o.invalidate_tlb = ptw_tlb_comm_i.invalidate_tlb;
+    ptw_itlb_comm_o.invalidate_tlb       = ptw_tlb_comm_i.invalidate_tlb;
+    ptw_itlb_comm_o.invalidate_tlb_satp = ptw_tlb_comm_i.invalidate_tlb_satp;
+    ptw_itlb_comm_o.invalidate_tlb_vsatp = ptw_tlb_comm_i.invalidate_tlb_vsatp;
+    ptw_itlb_comm_o.invalidate_tlb_hgatp = ptw_tlb_comm_i.invalidate_tlb_hgatp;
+    ptw_dtlb_comm_o.invalidate_tlb       = ptw_tlb_comm_i.invalidate_tlb;
+    ptw_dtlb_comm_o.invalidate_tlb_satp = ptw_tlb_comm_i.invalidate_tlb_satp;
+    ptw_dtlb_comm_o.invalidate_tlb_vsatp = ptw_tlb_comm_i.invalidate_tlb_vsatp;
+    ptw_dtlb_comm_o.invalidate_tlb_hgatp = ptw_tlb_comm_i.invalidate_tlb_hgatp;
 
     case (current_state)
         IDLE : begin

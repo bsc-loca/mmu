@@ -166,6 +166,9 @@ typedef struct packed {
     csr_mstatus_t  ptw_mstatus;     // mstatus csr register value, sent through the ptw.    
     csr_mstatus_t  ptw_vsstatus;    // vsstatus csr register value, sent through the ptw.  
     logic          invalidate_tlb;  // Signal to flush all entries in TLB and don't allocate in-progress transactions with the PTW.
+    logic          invalidate_tlb_satp;  // Signal to flush TLB entries controlled by satp and don't allocate in-progress transactions with the PTW.
+    logic          invalidate_tlb_vsatp; // Signal to flush TLB entries controlled by vsatp and don't allocate in-progress transactions with the PTW.
+    logic          invalidate_tlb_hgatp; // Signal to flush TLB entries controlled by hgatp and don't allocate in-progress transactions with the PTW.
 } ptw_tlb_comm_t;                   // Communication from to PTW to TLB.
 
 ////////////////////////////////      
@@ -281,6 +284,9 @@ typedef struct packed {
     logic [63:0] vsatp;
     logic [63:0] hgatp;
     logic flush;
+    logic flush_satp;
+    logic flush_vsatp;
+    logic flush_hgatp;
     csr_mstatus_t mstatus;
     csr_mstatus_t vsstatus;
 } csr_ptw_comm_t;

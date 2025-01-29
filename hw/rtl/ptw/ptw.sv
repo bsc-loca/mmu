@@ -280,6 +280,21 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
                 ptecache_entry[i].valid <= 1'b0;
             end
         end
+        else if (csr_ptw_comm_i.flush_satp) begin
+            for (int i = 0; i < PTW_CACHE_SIZE; i++) begin
+                if(!ptecache_entry[i].vs_enable && !ptecache_entry[i].g_enable) ptecache_entry[i].valid <= 1'b0;
+            end
+        end
+        else if (csr_ptw_comm_i.flush_vsatp) begin
+            for (int i = 0; i < PTW_CACHE_SIZE; i++) begin
+                if(ptecache_entry[i].vs_enable) ptecache_entry[i].valid <= 1'b0;
+            end
+        end
+        else if (csr_ptw_comm_i.flush_hgatp) begin
+            for (int i = 0; i < PTW_CACHE_SIZE; i++) begin
+                if(ptecache_entry[i].g_enable) ptecache_entry[i].valid <= 1'b0;
+            end
+        end
     end
 end
 
@@ -427,6 +442,9 @@ assign ptw_tlb_comm.ptw_ready = ptw_ready;
 assign ptw_tlb_comm.ptw_mstatus = csr_ptw_comm_i.mstatus;
 assign ptw_tlb_comm.ptw_vsstatus = csr_ptw_comm_i.vsstatus;
 assign ptw_tlb_comm.invalidate_tlb = csr_ptw_comm_i.flush;
+assign ptw_tlb_comm.invalidate_tlb_satp  = csr_ptw_comm_i.flush_satp;
+assign ptw_tlb_comm.invalidate_tlb_vsatp = csr_ptw_comm_i.flush_vsatp;
+assign ptw_tlb_comm.invalidate_tlb_hgatp = csr_ptw_comm_i.flush_hgatp;
 
 // Page-Table Walker FSM 
 always_ff @(posedge clk_i, negedge rstn_i) begin
@@ -498,7 +516,7 @@ always_comb begin
             end else begin
                 next_state = S_REQ;
             end
-            if (is_virtualized_env & is_vs_stage & ~allow_vs_req_q) begin
+            if (is_virtualized_env & r_req.en_g & is_vs_stage & ~allow_vs_req_q) begin
               ptw_dmem_comm_o.req.valid = 1'b0;
               pmu_ptw_hit_o = 1'b0;
               count_d = count_q;
@@ -519,7 +537,7 @@ always_comb begin
                 end else if (is_pte_leaf) begin
                     next_state = S_DONE;
                     if (is_virtualized_env & is_g_stage_q & ~last_g_stage_q) next_state = S_G_TO_VS;
-                    if (is_virtualized_env & is_vs_stage) begin
+                    if (is_virtualized_env & r_req.en_g & is_vs_stage) begin
                       last_g_stage_d = 1'b1;
                       next_state = S_VS_TO_G;
                     end
