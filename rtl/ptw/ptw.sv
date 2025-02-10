@@ -198,12 +198,12 @@ assign is_pte_sx = pte.v && pte.x && !pte.u;
 // Page Table Entry pointer for G-stage
 logic [63:0] g_aux_pte_addr;
 assign g_aux_pte_addr = (count_q == 0 && (current_state != S_DONE && current_state != S_G_TO_VS)) ? 
-                                      {{(64-(PPN_SIZE+PAGE_LVL_BITS+$clog2(XLEN/8))){1'b0}}, {csr_ptw_comm_i.hgatp[PPN_SIZE-1:2], g_vpn0_req, {{($clog2(XLEN/8))}{1'b0}}}}
-                                    : {{(64-(PPN_SIZE+PAGE_LVL_BITS+$clog2(XLEN/8))){1'b0}}, {r_pte.ppn, g_vpn_idx, {{($clog2(XLEN/8))}{1'b0}}}};
+                                      {{(64-(PPN_SIZE+PAGE_LVL_BITS+$clog2(riscv_pkg::XLEN/8))){1'b0}}, {csr_ptw_comm_i.hgatp[PPN_SIZE-1:2], g_vpn0_req, {{($clog2(riscv_pkg::XLEN/8))}{1'b0}}}}
+                                    : {{(64-(PPN_SIZE+PAGE_LVL_BITS+$clog2(riscv_pkg::XLEN/8))){1'b0}}, {r_pte.ppn, g_vpn_idx, {{($clog2(riscv_pkg::XLEN/8))}{1'b0}}}};
 
 // Page Table Entry pointer
 logic [63:0] aux_pte_addr;
-assign aux_pte_addr = {{(64-(PPN_SIZE+PAGE_LVL_BITS+$clog2(XLEN/8))){1'b0}}, {r_pte.ppn, vpn_idx, {{($clog2(XLEN/8))}{1'b0}}}};
+assign aux_pte_addr = {{(64-(PPN_SIZE+PAGE_LVL_BITS+$clog2(riscv_pkg::XLEN/8))){1'b0}}, {r_pte.ppn, vpn_idx, {{($clog2(riscv_pkg::XLEN/8))}{1'b0}}}};
 assign pte_addr = (is_virtualized_env & is_g_stage_q) ? g_aux_pte_addr[SIZE_VADDR:0] : aux_pte_addr[SIZE_VADDR:0]; // For Sv39: (r_pte.ppn << 12) + (vpn_idx << 3)
 
 // PTW Ready
