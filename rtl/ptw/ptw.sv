@@ -76,7 +76,7 @@ pte_t r_pte;
 pte_t pte;
 pte_t pte_wdata;
 
-logic virt_level_d, virt_level_q;
+logic [$clog2(LEVELS)-1:0] virt_level_d, virt_level_q;
 pte_t virt_pte_d, virt_pte_q;
 
 logic is_virtualized_env;
@@ -197,7 +197,7 @@ assign is_pte_sx = pte.v && pte.x && !pte.u;
 
 // Page Table Entry pointer for G-stage
 logic [63:0] g_aux_pte_addr;
-assign g_aux_pte_addr = (count_q == 0 && (current_state != S_DONE && current_state != S_G_TO_VS)) ? 
+assign g_aux_pte_addr = ((count_q == 0) && ((current_state != S_DONE) && (current_state != S_G_TO_VS))) ? 
                                       {{(64-(PPN_SIZE+PAGE_LVL_BITS+$clog2(riscv_pkg::XLEN/8))){1'b0}}, {csr_ptw_comm_i.hgatp[PPN_SIZE-1:2], g_vpn0_req, {{($clog2(riscv_pkg::XLEN/8))}{1'b0}}}}
                                     : {{(64-(PPN_SIZE+PAGE_LVL_BITS+$clog2(riscv_pkg::XLEN/8))){1'b0}}, {r_pte.ppn, g_vpn_idx, {{($clog2(riscv_pkg::XLEN/8))}{1'b0}}}};
 
@@ -222,8 +222,8 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
         end else if (ptw_ready & tlb_ptw_comm.req.valid) begin
             r_req <= tlb_ptw_comm.req;
             r_pte.ppn <= (tlb_ptw_comm.req.en_vs | tlb_ptw_comm.req.en_g) ? csr_ptw_comm_i.vsatp[PPN_SIZE-1:0] : csr_ptw_comm_i.satp[PPN_SIZE-1:0];
-        end
-        if (current_state == S_G_TO_VS) r_pte.ppn <= g_resp_ppn;
+        end else if (current_state == S_G_TO_VS) 
+            r_pte.ppn <= g_resp_ppn;
     end
 end
 `ifndef NO_PTW_CACHE
@@ -272,7 +272,7 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
                 ptecache_entry[priorityEncoder_idx].data <= pte.ppn;
             end
         end
-        else if (pte_cache_hit && (current_state == S_REQ && !(is_virtualized_env & is_vs_stage & ~allow_vs_req_q))) begin
+        else if (pte_cache_hit && ((current_state == S_REQ) && !(is_virtualized_env & is_vs_stage & (~allow_vs_req_q)))) begin
             access_hit <= 1'b1;
         end
         else if (csr_ptw_comm_i.flush) begin
@@ -302,7 +302,7 @@ always_comb begin
     for (int i = 0; i < PTW_CACHE_SIZE; i++) begin
         hit_vector[i] = ((ptecache_entry[i].tags == pte_addr) &&
                          (ptecache_entry[i].g_enable == (is_virtualized_env & is_g_stage_q)) &&
-                         (ptecache_entry[i].vs_enable == (is_virtualized_env & is_vs_stage) && !(is_virtualized_env & is_vs_stage & ~allow_vs_req_q)) &&
+                         ((ptecache_entry[i].vs_enable == (is_virtualized_env & is_vs_stage)) && !(is_virtualized_env & is_vs_stage & (~allow_vs_req_q))) &&
                          ptecache_entry[i].valid) ? 1'b1 : 1'b0;
         valid_vector[i] = ptecache_entry[i].valid;
     end

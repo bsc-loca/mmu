@@ -24,7 +24,7 @@ package mmu_pkg;
 parameter VPN_SIZE = 27;
 parameter VPN_MAX_SIZE = 29;
 parameter PPN_SIZE = 44;
-parameter SIZE_VADDR = 42; // This is used as the size of physical addresses
+parameter SIZE_VADDR = 41; // This is used as the size of physical addresses
 parameter ASID_SIZE = 7;
 parameter LEVELS = 3;
 parameter PAGE_LVL_BITS = 9;
