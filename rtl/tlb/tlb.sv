@@ -57,6 +57,7 @@ endfunction
 logic clear_tlb, write_tlb;
 logic [TLB_ENTRIES-1:0] clear_mask;
 logic [TLB_IDX_SIZE-1:0] write_idx;
+tlb_req_tmp_storage_t tlb_req_tmp;
 
 assign write_idx = tlb_req_tmp.write_idx; // stored write_idx with the eviction idx (calculated in the first cycle of the req)
 always_ff @(posedge clk_i, negedge rstn_i) begin
@@ -219,7 +220,6 @@ typedef enum logic [1:0] {
 ptw_state current_state, next_state;
 logic store_tlb_req, send_tlb_req, tlb_ready;
 logic pmu_tlb_access, pmu_tlb_miss;
-tlb_req_tmp_storage_t tlb_req_tmp;
 
 always_comb begin
     store_tlb_req = 1'b0;
