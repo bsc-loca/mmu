@@ -151,6 +151,7 @@ typedef struct packed {
 typedef struct packed {
     logic                      valid; // Translation response valid.
     logic                      error; // An error has ocurred with the translation request. Only check if the response is valid.
+    logic                      g_stage_error;   // In case the error was during the G stage
     pte_t                      pte;   // Page table entry.
     pte_t                      virt_pte;   // virtual Page table entry.
     logic [$clog2(LEVELS)-1:0] level; // Page entry size: 2'b00 (1 GiB Page), 2'b01 (2 MiB Page), 2'b10 (4 KiB Page). 
@@ -201,6 +202,7 @@ typedef struct packed {
     logic                   nempty; // The tlb entry is not empty, when the PTW sends a translation response that we don't have to ignore, it is set to 1.
     logic                   g_enable;
     logic                   vs_enable;
+    logic                   g_stage_error;   // In case an error occured during the G stage
 } tlb_entry_t;                      // TLB page entry.
 
 typedef struct packed {

@@ -87,6 +87,7 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
             tlb_entries[write_idx].perms.sw <= ptw_tlb_comm_i.resp.pte.w & !ptw_tlb_comm_i.resp.pte.u & ptw_tlb_comm_i.resp.pte.v;
             tlb_entries[write_idx].perms.sx <= ptw_tlb_comm_i.resp.pte.x & !ptw_tlb_comm_i.resp.pte.u & ptw_tlb_comm_i.resp.pte.v;
             tlb_entries[write_idx].valid <= !ptw_tlb_comm_i.resp.error;
+            tlb_entries[write_idx].g_stage_error <= ptw_tlb_comm_i.resp.g_stage_error;
             tlb_entries[write_idx].nempty <= 1'b1;
             // virtual ppn
             tlb_entries[write_idx].g_enable <= is_virtualized_env && g_enable;
@@ -476,21 +477,21 @@ assign virt_exec_ok = (sv_priv_lvl) ? tlb_entries[hit_idx].virt_perms.sx : tlb_e
 logic xcpt_if, xcpt_st, xcpt_ld;
 assign xcpt_if = (vm_enable && 
                       ((~(tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !exec_ok) || tlb_entry_access_is_zero))
-                    || (tlb_entries[hit_idx].g_enable && ((tlb_hit && !virt_exec_ok) || tlb_entry_virt_access_is_zero)))
+                    || ((~tlb_entries[hit_idx].g_stage_error && tlb_entries[hit_idx].g_enable) && ((tlb_hit && !virt_exec_ok) || tlb_entry_virt_access_is_zero)))
                   ) ? 1'b1 : 1'b0;
 assign xcpt_st = (vm_enable && 
                       ((~(tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !write_ok) || tlb_entry_access_is_zero || tlb_entry_dirty_is_zero))
-                    || (tlb_entries[hit_idx].g_enable && ((tlb_hit && !virt_write_ok) || tlb_entry_virt_access_is_zero || tlb_entry_virt_dirty_is_zero)))
+                    || ((~tlb_entries[hit_idx].g_stage_error && tlb_entries[hit_idx].g_enable) && ((tlb_hit && !virt_write_ok) || tlb_entry_virt_access_is_zero || tlb_entry_virt_dirty_is_zero)))
                   ) ? 1'b1 : 1'b0;
 assign xcpt_ld = (vm_enable && 
                       ((~(tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !read_ok) || tlb_entry_access_is_zero))
-                    || (tlb_entries[hit_idx].g_enable && ((tlb_hit && !virt_read_ok) || tlb_entry_virt_access_is_zero)))
+                    || ((~tlb_entries[hit_idx].g_stage_error && tlb_entries[hit_idx].g_enable) && ((tlb_hit && !virt_read_ok) || tlb_entry_virt_access_is_zero)))
                   ) ? 1'b1 : 1'b0;
 
 logic guest_xcpt_if, guest_xcpt_st, guest_xcpt_ld;
-assign guest_xcpt_if = (vm_enable && (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !exec_ok) || tlb_entry_access_is_zero)) ? 1'b1 : 1'b0;
-assign guest_xcpt_st = (vm_enable && (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !write_ok) || tlb_entry_access_is_zero || tlb_entry_dirty_is_zero)) ? 1'b1 : 1'b0;
-assign guest_xcpt_ld = (vm_enable && (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !read_ok) || tlb_entry_access_is_zero)) ? 1'b1 : 1'b0;
+assign guest_xcpt_if = (vm_enable && (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !exec_ok) || (tlb_entries[hit_idx].g_stage_error || tlb_entry_access_is_zero))) ? 1'b1 : 1'b0;
+assign guest_xcpt_st = (vm_enable && (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !write_ok) || (tlb_entries[hit_idx].g_stage_error || tlb_entry_access_is_zero || tlb_entry_dirty_is_zero))) ? 1'b1 : 1'b0;
+assign guest_xcpt_ld = (vm_enable && (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !read_ok) || (tlb_entries[hit_idx].g_stage_error || tlb_entry_access_is_zero))) ? 1'b1 : 1'b0;
 
 // PPN ASSIGNAMENT
 ///////////////////////////////

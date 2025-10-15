@@ -182,8 +182,11 @@ endgenerate
 assign valid_pte_lvl[LEVELS-1] = dmem_ptw_comm_i.resp.data[0];
 assign pte.v = valid_pte_lvl[count_q];
 
-assign invalid_pte = (((dmem_ptw_comm_i.resp.data >> (PPN_SIZE+10)) != '0) ||
-                      ((is_pte_table & pte.v & (pte.d || pte.a || pte.u)))) ? 1'b1 : 1'b0; //Make sure that N, PBMT and Reserved are 0
+assign invalid_pte = (((dmem_ptw_comm_i.resp.data >> (PPN_SIZE+10)) != '0) || //Make sure that N, PBMT and Reserved are 0
+                      ((is_pte_table & pte.v & (pte.d || pte.a || pte.u))) ||
+                      (is_pte_leaf && is_g_stage_q && !pte.u) || //For G-stage address translation, all memory accesses (including those made to access data structures for VS-stage address translation) are considered to be user-level accesses
+                      (is_pte_leaf && !pte.r && pte.w)) //if pte.r=0 and pte.w=1, or if any bits or encodings that are reserved for future standard use are set within pte, stop and raise a page-fault exception corresponding to the original access type
+                      ? 1'b1 : 1'b0;
 
 assign is_pte_table = pte.v && !pte.x && !pte.w && !pte.r;
 assign is_pte_leaf = pte.v && (pte.x || pte.w || pte.r);
@@ -425,6 +428,7 @@ assign g_resp_ppn = g_resp_ppn_lvl[count_q];
 // Send TLB Response to Arb
 assign ptw_tlb_comm.resp.valid = resp_val;
 assign ptw_tlb_comm.resp.error = resp_err;
+assign ptw_tlb_comm.resp.g_stage_error = resp_err & is_g_stage_q;
 assign ptw_tlb_comm.resp.level = count_q;
 assign ptw_tlb_comm.resp.pte.ppn = is_virtualized_env? g_resp_ppn : resp_ppn;
 assign ptw_tlb_comm.resp.pte.rfs = r_pte.rfs;
@@ -509,7 +513,10 @@ always_comb begin
                 ptw_dmem_comm_o.req.valid = 1'b0;
                 pmu_ptw_hit_o = 1'b1;
                 count_d = count[1:0];
-                allow_vs_req_d = 1'b1;
+                allow_vs_req_d = 1'b0;
+                if (is_virtualized_env & is_g_stage_q) begin
+                    allow_vs_req_d = 1'b1;
+                end
                 next_state = S_REQ;
             end else if (dmem_ptw_comm_i.dmem_ready) begin
                 next_state = S_WAIT;
