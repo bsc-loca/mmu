@@ -531,6 +531,7 @@ assign resp_ppn =
 
 assign tlb_cache_comm_o.resp.miss = tlb_miss;
 assign tlb_cache_comm_o.resp.ppn = resp_ppn;
+assign tlb_cache_comm_o.resp.virt_ppn = virt_ppn;
 assign tlb_cache_comm_o.resp.xcpt.load = xcpt_ld;
 assign tlb_cache_comm_o.resp.xcpt.store = xcpt_st;
 assign tlb_cache_comm_o.resp.xcpt.fetch = xcpt_if;
