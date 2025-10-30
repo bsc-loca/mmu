@@ -114,7 +114,7 @@ typedef struct packed {
 typedef struct packed { 
     logic                miss;      // If the translation request missed set to 1 Otherwise, the rest of the signals have valid information of the response.
     logic [PPN_SIZE-1:0] ppn;       // Physical page number.
-    logic [PPN_SIZE-1:0] virt_ppn;  // Virtual physical page number.
+    logic [PPN_SIZE-1:0] guest_ppn; // Guest physical page number.
     tlb_ex_t             xcpt;      // Exceptions produced by the requests.
     tlb_ex_t             guest_xcpt; // Exceptions produced by the guest ppn in virtualized case.
     logic [7:0]          hit_idx;   // CAM hit index of the translation request.
@@ -154,7 +154,7 @@ typedef struct packed {
     logic                      error; // An error has ocurred with the translation request. Only check if the response is valid.
     logic                      g_stage_error;   // In case the error was during the G stage
     pte_t                      pte;   // Page table entry.
-    pte_t                      virt_pte;   // virtual Page table entry.
+    pte_t                      guest_pte;   // guest Page table entry.
     logic [$clog2(LEVELS)-1:0] level; // Page entry size: 2'b00 (1 GiB Page), 2'b01 (2 MiB Page), 2'b10 (4 KiB Page). 
     logic [$clog2(LEVELS)-1:0] virt_level; // Page entry size: 2'b00 (1 GiB Page), 2'b01 (2 MiB Page), 2'b10 (4 KiB Page). 
 } ptw_tlb_resp_t;                     // PTW response to TLB translation request.
@@ -190,7 +190,7 @@ typedef struct packed {
     logic [ASID_SIZE-1:0]   asid;   // Address space identifier.
     logic [ASID_SIZE-2-1:0] vmid;   // virtual machine identifier.
     logic [PPN_SIZE-1:0]    ppn;    // Physical page number.
-    logic [PPN_SIZE-1:0]    virt_ppn;    // virtual Physical page number.
+    logic [PPN_SIZE-1:0]    guest_ppn;    // Guest Physical page number.
     logic [1:0]             level;  // Page entry size: 2'b00 (1 GiB Page), 2'b01 (2 MiB Page), 2'b10 (4 KiB Page).
     logic [1:0]             virt_level;  // Page entry size: 2'b00 (1 GiB Page), 2'b01 (2 MiB Page), 2'b10 (4 KiB Page).
     logic                   dirty;  // The page entry is set as dirty.

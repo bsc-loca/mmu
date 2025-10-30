@@ -77,7 +77,7 @@ pte_t pte;
 pte_t pte_wdata;
 
 logic [$clog2(LEVELS)-1:0] virt_level_d, virt_level_q;
-pte_t virt_pte_d, virt_pte_q;
+pte_t guest_pte_d, guest_pte_q;
 
 logic is_virtualized_env;
 logic g_stage_only, is_g_stage_d, is_g_stage_q, last_g_stage_d, last_g_stage_q;
@@ -441,7 +441,7 @@ assign ptw_tlb_comm.resp.pte.w = r_pte.w;
 assign ptw_tlb_comm.resp.pte.r = r_pte.r;
 assign ptw_tlb_comm.resp.pte.v = r_pte.v;
 assign ptw_tlb_comm.resp.virt_level = virt_level_q;
-assign ptw_tlb_comm.resp.virt_pte = virt_pte_q;
+assign ptw_tlb_comm.resp.guest_pte = guest_pte_q;
 assign ptw_tlb_comm.ptw_ready = ptw_ready;
 assign ptw_tlb_comm.ptw_mstatus = csr_ptw_comm_i.mstatus;
 assign ptw_tlb_comm.ptw_vsstatus = csr_ptw_comm_i.vsstatus;
@@ -460,7 +460,7 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
         vs_pte_addr_reg_q <= '0;
         vs_count_reg_q <= '0;
         last_g_stage_q <= '0;
-        virt_pte_q <= '0;
+        guest_pte_q <= '0;
         virt_level_q <= 0;
     end
     else begin
@@ -471,7 +471,7 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
         vs_pte_addr_reg_q <= vs_pte_addr_reg_d;
         vs_count_reg_q <= vs_count_reg_d;
         last_g_stage_q <= last_g_stage_d;
-        virt_pte_q <= virt_pte_d;
+        guest_pte_q <= guest_pte_d;
         virt_level_q <= virt_level_d;
     end
 end
@@ -488,11 +488,11 @@ always_comb begin
     vs_pte_addr_reg_d = vs_pte_addr_reg_q;
     vs_count_reg_d = vs_count_reg_q;
     last_g_stage_d = last_g_stage_q;
-    virt_pte_d = virt_pte_q;
+    guest_pte_d = guest_pte_q;
     virt_level_d = virt_level_q;
     case (current_state)
         S_READY : begin
-            virt_pte_d = '0;
+            guest_pte_d = '0;
             virt_level_d = 0;
             count_d = '0;
             allow_vs_req_d = 1'b0;
@@ -564,16 +564,16 @@ always_comb begin
           vs_pte_addr_reg_d = aux_pte_addr[SIZE_VADDR:0] ; // For Sv39: (r_pte.ppn << 12) + (vpn_idx << 3)
           count_d = '0;
           virt_level_d   = count_q;
-          virt_pte_d.ppn = resp_ppn;
-          virt_pte_d.rfs = r_pte.rfs;
-          virt_pte_d.d = g_stage_only ? 1'b1 : r_pte.d;
-          virt_pte_d.a = g_stage_only ? 1'b1 : r_pte.a;
-          virt_pte_d.g = g_stage_only ? 1'b0 : r_pte.g;
-          virt_pte_d.u = g_stage_only ? 1'b0 : r_pte.u;
-          virt_pte_d.x = g_stage_only ? 1'b1 : r_pte.x;
-          virt_pte_d.w = g_stage_only ? 1'b1 : r_pte.w;
-          virt_pte_d.r = g_stage_only ? 1'b1 : r_pte.r;
-          virt_pte_d.v = g_stage_only ? 1'b1 : r_pte.v;
+          guest_pte_d.ppn = resp_ppn;
+          guest_pte_d.rfs = r_pte.rfs;
+          guest_pte_d.d = g_stage_only ? 1'b1 : r_pte.d;
+          guest_pte_d.a = g_stage_only ? 1'b1 : r_pte.a;
+          guest_pte_d.g = g_stage_only ? 1'b0 : r_pte.g;
+          guest_pte_d.u = g_stage_only ? 1'b0 : r_pte.u;
+          guest_pte_d.x = g_stage_only ? 1'b1 : r_pte.x;
+          guest_pte_d.w = g_stage_only ? 1'b1 : r_pte.w;
+          guest_pte_d.r = g_stage_only ? 1'b1 : r_pte.r;
+          guest_pte_d.v = g_stage_only ? 1'b1 : r_pte.v;
           next_state = S_REQ;
           if(|aux_pte_addr[63:41]) next_state = S_ERROR; // Translation is a G-stage: Address bits 63:41 must all be zeros, or else a guest-page-fault exception occurs
         end

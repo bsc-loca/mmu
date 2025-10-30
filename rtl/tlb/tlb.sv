@@ -92,16 +92,16 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
             // virtual ppn
             tlb_entries[write_idx].g_enable <= is_virtualized_env && g_enable;
             tlb_entries[write_idx].vs_enable <= is_virtualized_env && vs_enable;
-            tlb_entries[write_idx].virt_ppn <= ptw_tlb_comm_i.resp.virt_pte.ppn;
+            tlb_entries[write_idx].guest_ppn <= ptw_tlb_comm_i.resp.guest_pte.ppn;
             tlb_entries[write_idx].virt_level <= ptw_tlb_comm_i.resp.virt_level;
-            tlb_entries[write_idx].virt_dirty <= ptw_tlb_comm_i.resp.virt_pte.d;
-            tlb_entries[write_idx].virt_access <= ptw_tlb_comm_i.resp.virt_pte.a;
-            tlb_entries[write_idx].virt_perms.ur <= ptw_tlb_comm_i.resp.virt_pte.r & ptw_tlb_comm_i.resp.virt_pte.u & ptw_tlb_comm_i.resp.virt_pte.v;
-            tlb_entries[write_idx].virt_perms.uw <= ptw_tlb_comm_i.resp.virt_pte.w & ptw_tlb_comm_i.resp.virt_pte.u & ptw_tlb_comm_i.resp.virt_pte.v;
-            tlb_entries[write_idx].virt_perms.ux <= ptw_tlb_comm_i.resp.virt_pte.x & ptw_tlb_comm_i.resp.virt_pte.u & ptw_tlb_comm_i.resp.virt_pte.v;
-            tlb_entries[write_idx].virt_perms.sr <= ptw_tlb_comm_i.resp.virt_pte.r & !ptw_tlb_comm_i.resp.virt_pte.u & ptw_tlb_comm_i.resp.virt_pte.v;
-            tlb_entries[write_idx].virt_perms.sw <= ptw_tlb_comm_i.resp.virt_pte.w & !ptw_tlb_comm_i.resp.virt_pte.u & ptw_tlb_comm_i.resp.virt_pte.v;
-            tlb_entries[write_idx].virt_perms.sx <= ptw_tlb_comm_i.resp.virt_pte.x & !ptw_tlb_comm_i.resp.virt_pte.u & ptw_tlb_comm_i.resp.virt_pte.v;
+            tlb_entries[write_idx].virt_dirty <= ptw_tlb_comm_i.resp.guest_pte.d;
+            tlb_entries[write_idx].virt_access <= ptw_tlb_comm_i.resp.guest_pte.a;
+            tlb_entries[write_idx].virt_perms.ur <= ptw_tlb_comm_i.resp.guest_pte.r & ptw_tlb_comm_i.resp.guest_pte.u & ptw_tlb_comm_i.resp.guest_pte.v;
+            tlb_entries[write_idx].virt_perms.uw <= ptw_tlb_comm_i.resp.guest_pte.w & ptw_tlb_comm_i.resp.guest_pte.u & ptw_tlb_comm_i.resp.guest_pte.v;
+            tlb_entries[write_idx].virt_perms.ux <= ptw_tlb_comm_i.resp.guest_pte.x & ptw_tlb_comm_i.resp.guest_pte.u & ptw_tlb_comm_i.resp.guest_pte.v;
+            tlb_entries[write_idx].virt_perms.sr <= ptw_tlb_comm_i.resp.guest_pte.r & !ptw_tlb_comm_i.resp.guest_pte.u & ptw_tlb_comm_i.resp.guest_pte.v;
+            tlb_entries[write_idx].virt_perms.sw <= ptw_tlb_comm_i.resp.guest_pte.w & !ptw_tlb_comm_i.resp.guest_pte.u & ptw_tlb_comm_i.resp.guest_pte.v;
+            tlb_entries[write_idx].virt_perms.sx <= ptw_tlb_comm_i.resp.guest_pte.x & !ptw_tlb_comm_i.resp.guest_pte.u & ptw_tlb_comm_i.resp.guest_pte.v;
         end
     end
 end
@@ -497,27 +497,27 @@ assign guest_xcpt_ld = (vm_enable && (tlb_entries[hit_idx].vs_enable || tlb_entr
 ///////////////////////////////
 
 logic [PPN_SIZE-1:0] ppn_k, ppn_m, ppn_g, resp_ppn;
-logic [PPN_SIZE-1:0] virt_ppn_k, virt_ppn_m, virt_ppn_g, virt_ppn;
+logic [PPN_SIZE-1:0] guest_ppn_k, guest_ppn_m, guest_ppn_g, guest_ppn;
 
 // We receive superpages from PTW as if they were 4KB pages (implementation decision in LowRisc)
 // For example 2MB ppn 1 is encoded as 100000000b -> 512 in 4KB pages
 // therefore, it is required exctracting the page number in its real size and fill the 0s with the 
 // corresponding bits of the vpn to get the correct translation
 
-assign virt_ppn_k = tlb_entries[hit_idx].g_enable ? tlb_entries[hit_idx].virt_ppn : '0;
-assign virt_ppn_m = tlb_entries[hit_idx].g_enable ? {tlb_entries[hit_idx].virt_ppn >> PAGE_LVL_BITS, cache_vpn[PAGE_LVL_BITS-1:0]} : '0;
-assign virt_ppn_g = tlb_entries[hit_idx].g_enable ? {tlb_entries[hit_idx].virt_ppn >> (PAGE_LVL_BITS * 2), cache_vpn[PAGE_LVL_BITS*2-1:0]} : '0;
-assign virt_ppn = tlb_entries[hit_idx].g_enable ?
-    (((virt_ppn_k & {PPN_SIZE{virt_hit_k & vm_enable & ~passthrough}}) | (virt_ppn_m & {PPN_SIZE{virt_hit_m & vm_enable & ~passthrough}})) |
-    ((virt_ppn_g & {PPN_SIZE{virt_hit_g & vm_enable & ~passthrough}}) | 
+assign guest_ppn_k = tlb_entries[hit_idx].g_enable ? tlb_entries[hit_idx].guest_ppn : '0;
+assign guest_ppn_m = tlb_entries[hit_idx].g_enable ? {tlb_entries[hit_idx].guest_ppn >> PAGE_LVL_BITS, cache_vpn[PAGE_LVL_BITS-1:0]} : '0;
+assign guest_ppn_g = tlb_entries[hit_idx].g_enable ? {tlb_entries[hit_idx].guest_ppn >> (PAGE_LVL_BITS * 2), cache_vpn[PAGE_LVL_BITS*2-1:0]} : '0;
+assign guest_ppn = tlb_entries[hit_idx].g_enable ?
+    (((guest_ppn_k & {PPN_SIZE{virt_hit_k & vm_enable & ~passthrough}}) | (guest_ppn_m & {PPN_SIZE{virt_hit_m & vm_enable & ~passthrough}})) |
+    ((guest_ppn_g & {PPN_SIZE{virt_hit_g & vm_enable & ~passthrough}}) | 
     ((~tlb_entries[hit_idx].vs_enable) ? 
     {{(PPN_SIZE-VPN_MAX_SIZE-1){1'b0}}, cache_vpn & {(VPN_MAX_SIZE+1){~(vm_enable & ~passthrough)}}}:
     {{(PPN_SIZE-VPN_SIZE-1){1'b0}}, cache_vpn[VPN_SIZE:0] & {(VPN_SIZE+1){~(vm_enable & ~passthrough)}}}))) : '0;
 
 assign ppn_k = tlb_entries[hit_idx].ppn;
-assign ppn_m = (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) ? {tlb_entries[hit_idx].ppn >> PAGE_LVL_BITS, virt_ppn[PAGE_LVL_BITS-1:0]}
+assign ppn_m = (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) ? {tlb_entries[hit_idx].ppn >> PAGE_LVL_BITS, guest_ppn[PAGE_LVL_BITS-1:0]}
                                   : {tlb_entries[hit_idx].ppn >> PAGE_LVL_BITS, cache_vpn[PAGE_LVL_BITS-1:0]};
-assign ppn_g = (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) ? {tlb_entries[hit_idx].ppn >> (PAGE_LVL_BITS * 2), virt_ppn[PAGE_LVL_BITS*2-1:0]}
+assign ppn_g = (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) ? {tlb_entries[hit_idx].ppn >> (PAGE_LVL_BITS * 2), guest_ppn[PAGE_LVL_BITS*2-1:0]}
                                   : {tlb_entries[hit_idx].ppn >> (PAGE_LVL_BITS * 2), cache_vpn[PAGE_LVL_BITS*2-1:0]};
 assign resp_ppn =
         ((ppn_k & {PPN_SIZE{hit_k & vm_enable & ~passthrough}}) | (ppn_m & {PPN_SIZE{hit_m & vm_enable & ~passthrough}})) |
@@ -531,7 +531,7 @@ assign resp_ppn =
 
 assign tlb_cache_comm_o.resp.miss = tlb_miss;
 assign tlb_cache_comm_o.resp.ppn = resp_ppn;
-assign tlb_cache_comm_o.resp.virt_ppn = virt_ppn;
+assign tlb_cache_comm_o.resp.guest_ppn = guest_ppn;
 assign tlb_cache_comm_o.resp.xcpt.load = xcpt_ld;
 assign tlb_cache_comm_o.resp.xcpt.store = xcpt_st;
 assign tlb_cache_comm_o.resp.xcpt.fetch = xcpt_if;
