@@ -54,12 +54,15 @@ typedef enum logic [2:0] {
     S_READY,
     S_REQ,
     S_WAIT,
+    S_VS_TO_G,
+    S_G_TO_VS,
     S_DONE,
     S_ERROR
 } ptw_state;
 
 // Signal declaration
 logic unsigned [$clog2(LEVELS)-1:0] count_d, count_q;
+logic unsigned [$clog2(LEVELS)-1:0] vs_count_reg_d, vs_count_reg_q;
 logic unsigned [$clog2(LEVELS):0] count;
 
 ptw_tlb_comm_t ptw_tlb_comm; 
@@ -73,9 +76,25 @@ pte_t r_pte;
 pte_t pte;
 pte_t pte_wdata;
 
+logic [$clog2(LEVELS)-1:0] virt_level_d, virt_level_q;
+pte_t guest_pte_d, guest_pte_q;
+
+logic is_virtualized_env;
+logic g_stage_only, is_g_stage_d, is_g_stage_q, last_g_stage_d, last_g_stage_q;
+logic is_vs_stage, allow_vs_req_d, allow_vs_req_q;
+assign is_virtualized_env = (r_req.en_vs | r_req.en_g);
+assign is_vs_stage = is_virtualized_env & ~is_g_stage_q;
+assign g_stage_only = r_req.en_g & ~r_req.en_vs;
+
 logic [PAGE_LVL_BITS-1:0] vpn_req [LEVELS-1:0];
 logic [PAGE_LVL_BITS-1:0] vpn_idx;
+
+logic [PAGE_LVL_BITS+2-1:0] g_vpn0_req;
+logic [PAGE_LVL_BITS-1:0] g_vpn_req [LEVELS-1:0];
+logic [PAGE_LVL_BITS-1:0] g_vpn_idx;
+
 logic [SIZE_VADDR:0] pte_addr;
+logic [SIZE_VADDR:0] vs_pte_addr_reg_d, vs_pte_addr_reg_q;
 logic invalid_pte;
 logic valid_pte_lvl [LEVELS-1:0];
 logic is_pte_leaf, is_pte_table;
@@ -89,6 +108,9 @@ logic resp_err, resp_val;
 logic [63:0] r_resp_ppn;
 logic [PPN_SIZE-1:0] resp_ppn_lvl [LEVELS-1:0];
 logic [PPN_SIZE-1:0] resp_ppn;
+
+logic [PPN_SIZE-1:0] g_resp_ppn_lvl [LEVELS-1:0];
+logic [PPN_SIZE-1:0] g_resp_ppn;
 
 logic pte_cache_hit;
 logic [PPN_SIZE-1:0] pte_cache_data;
@@ -115,11 +137,24 @@ genvar lvl;
 generate
     for (lvl = 0; lvl < LEVELS; lvl++) begin
         logic [VPN_SIZE-1:0] aux_vpn_req;
-        assign aux_vpn_req = (r_req.vpn >> ((LEVELS-lvl-1)*PAGE_LVL_BITS));
+        assign aux_vpn_req = (r_req.vpn[VPN_SIZE-1:0] >> ((LEVELS-lvl-1)*PAGE_LVL_BITS));
         assign vpn_req[lvl] = aux_vpn_req[PAGE_LVL_BITS-1:0];
     end
 endgenerate
 assign vpn_idx = vpn_req[count_q];
+
+// VPN indexation depending on the page level for G-stage
+genvar g_lvl;
+generate
+    assign g_vpn0_req = g_stage_only ? (r_req.vpn[VPN_MAX_SIZE-1:0] >> ((LEVELS-1)*PAGE_LVL_BITS)) : ({'0, vs_pte_addr_reg_q[SIZE_VADDR-1:12 + ((LEVELS-1)*PAGE_LVL_BITS)]});
+    assign g_vpn_req[0] = '0;
+    for (g_lvl = 1; g_lvl < LEVELS; g_lvl++) begin
+        logic [VPN_MAX_SIZE-1:0] g_aux_vpn_req;
+        assign g_aux_vpn_req = ({'0, vs_pte_addr_reg_q[SIZE_VADDR-1:12 + ((LEVELS-g_lvl-1)*PAGE_LVL_BITS)]});
+        assign g_vpn_req[g_lvl] = g_stage_only ? vpn_req[g_lvl] : g_aux_vpn_req[PAGE_LVL_BITS-1:0];
+    end
+endgenerate
+assign g_vpn_idx = g_vpn_req[count_q];
 
 // Formatting pte data from dmem
 assign pte.ppn = dmem_ptw_comm_i.resp.data[10+:(PPN_SIZE)];
@@ -147,8 +182,11 @@ endgenerate
 assign valid_pte_lvl[LEVELS-1] = dmem_ptw_comm_i.resp.data[0];
 assign pte.v = valid_pte_lvl[count_q];
 
-assign invalid_pte = (((dmem_ptw_comm_i.resp.data >> (PPN_SIZE+10)) != '0) ||
-                      ((is_pte_table & pte.v & (pte.d || pte.a || pte.u)))) ? 1'b1 : 1'b0; //Make sure that N, PBMT and Reserved are 0
+assign invalid_pte = (((dmem_ptw_comm_i.resp.data >> (PPN_SIZE+10)) != '0) || //Make sure that N, PBMT and Reserved are 0
+                      ((is_pte_table & pte.v & (pte.d || pte.a || pte.u))) ||
+                      (is_pte_leaf && is_g_stage_q && !pte.u) || //For G-stage address translation, all memory accesses (including those made to access data structures for VS-stage address translation) are considered to be user-level accesses
+                      (is_pte_leaf && !pte.r && pte.w)) //if pte.r=0 and pte.w=1, or if any bits or encodings that are reserved for future standard use are set within pte, stop and raise a page-fault exception corresponding to the original access type
+                      ? 1'b1 : 1'b0;
 
 assign is_pte_table = pte.v && !pte.x && !pte.w && !pte.r;
 assign is_pte_leaf = pte.v && (pte.x || pte.w || pte.r);
@@ -160,10 +198,16 @@ assign is_pte_sr = is_pte_leaf && pte.r && !pte.u;
 assign is_pte_sw = is_pte_sr && pte.w;
 assign is_pte_sx = pte.v && pte.x && !pte.u;
 
+// Page Table Entry pointer for G-stage
+logic [63:0] g_aux_pte_addr;
+assign g_aux_pte_addr = ((count_q == 0) && ((current_state != S_DONE) && (current_state != S_G_TO_VS))) ? 
+                                      {{(64-(PPN_SIZE+PAGE_LVL_BITS+$clog2(riscv_pkg::XLEN/8))){1'b0}}, {csr_ptw_comm_i.hgatp[PPN_SIZE-1:2], g_vpn0_req, {{($clog2(riscv_pkg::XLEN/8))}{1'b0}}}}
+                                    : {{(64-(PPN_SIZE+PAGE_LVL_BITS+$clog2(riscv_pkg::XLEN/8))){1'b0}}, {r_pte.ppn, g_vpn_idx, {{($clog2(riscv_pkg::XLEN/8))}{1'b0}}}};
+
 // Page Table Entry pointer
 logic [63:0] aux_pte_addr;
 assign aux_pte_addr = {{(64-(PPN_SIZE+PAGE_LVL_BITS+$clog2(riscv_pkg::XLEN/8))){1'b0}}, {r_pte.ppn, vpn_idx, {{($clog2(riscv_pkg::XLEN/8))}{1'b0}}}};
-assign pte_addr = aux_pte_addr[SIZE_VADDR:0] ; // For Sv39: (r_pte.ppn << 12) + (vpn_idx << 3)
+assign pte_addr = (is_virtualized_env & is_g_stage_q) ? g_aux_pte_addr[SIZE_VADDR:0] : aux_pte_addr[SIZE_VADDR:0]; // For Sv39: (r_pte.ppn << 12) + (vpn_idx << 3)
 
 // PTW Ready
 assign ptw_ready = (current_state == S_READY);
@@ -176,12 +220,13 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
     end else begin
         if ((current_state == S_WAIT) && dmem_ptw_comm_i.resp.valid) begin
             r_pte <= pte;
-        end else if ((current_state == S_REQ) && pte_cache_hit && (count_q < $unsigned(LEVELS-1))) begin
+        end else if ((current_state == S_REQ) && pte_cache_hit && (count_q < $unsigned(LEVELS-1)) && !(is_virtualized_env & is_vs_stage & ~allow_vs_req_q)) begin
             r_pte.ppn <= pte_cache_data; 
         end else if (ptw_ready & tlb_ptw_comm.req.valid) begin
             r_req <= tlb_ptw_comm.req;
-            r_pte.ppn <= csr_ptw_comm_i.satp[PPN_SIZE-1:0];
-        end
+            r_pte.ppn <= (tlb_ptw_comm.req.en_vs | tlb_ptw_comm.req.en_g) ? csr_ptw_comm_i.vsatp[PPN_SIZE-1:0] : csr_ptw_comm_i.satp[PPN_SIZE-1:0];
+        end else if (current_state == S_G_TO_VS) 
+            r_pte.ppn <= g_resp_ppn;
     end
 end
 `ifndef NO_PTW_CACHE
@@ -218,15 +263,19 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
         if (dmem_ptw_comm_i.resp.valid && is_pte_table && !pte_cache_hit) begin
             if (full_cache) begin
                 ptecache_entry[plru_eviction_idx].valid <= 1'b1;
+                ptecache_entry[plru_eviction_idx].g_enable <= is_virtualized_env & is_g_stage_q;
+                ptecache_entry[plru_eviction_idx].vs_enable <= is_virtualized_env & is_vs_stage;
                 ptecache_entry[plru_eviction_idx].tags <= pte_addr;
                 ptecache_entry[plru_eviction_idx].data <= pte.ppn;
             end else begin
                 ptecache_entry[priorityEncoder_idx].valid <= 1'b1;
+                ptecache_entry[priorityEncoder_idx].g_enable <= is_virtualized_env & is_g_stage_q;
+                ptecache_entry[priorityEncoder_idx].vs_enable <= is_virtualized_env & is_vs_stage;
                 ptecache_entry[priorityEncoder_idx].tags <= pte_addr;
                 ptecache_entry[priorityEncoder_idx].data <= pte.ppn;
             end
         end
-        else if (pte_cache_hit && (current_state == S_REQ)) begin
+        else if (pte_cache_hit && ((current_state == S_REQ) && !(is_virtualized_env & is_vs_stage & (~allow_vs_req_q)))) begin
             access_hit <= 1'b1;
         end
         else if (csr_ptw_comm_i.flush) begin
@@ -234,12 +283,30 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
                 ptecache_entry[i].valid <= 1'b0;
             end
         end
+        else if (csr_ptw_comm_i.flush_satp) begin
+            for (int i = 0; i < PTW_CACHE_SIZE; i++) begin
+                if(!ptecache_entry[i].vs_enable && !ptecache_entry[i].g_enable) ptecache_entry[i].valid <= 1'b0;
+            end
+        end
+        else if (csr_ptw_comm_i.flush_vsatp) begin
+            for (int i = 0; i < PTW_CACHE_SIZE; i++) begin
+                if(ptecache_entry[i].vs_enable) ptecache_entry[i].valid <= 1'b0;
+            end
+        end
+        else if (csr_ptw_comm_i.flush_hgatp) begin
+            for (int i = 0; i < PTW_CACHE_SIZE; i++) begin
+                if(ptecache_entry[i].g_enable) ptecache_entry[i].valid <= 1'b0;
+            end
+        end
     end
 end
 
 always_comb begin
     for (int i = 0; i < PTW_CACHE_SIZE; i++) begin
-        hit_vector[i] = ((ptecache_entry[i].tags == pte_addr) && ptecache_entry[i].valid) ? 1'b1 : 1'b0;
+        hit_vector[i] = ((ptecache_entry[i].tags == pte_addr) &&
+                         (ptecache_entry[i].g_enable == (is_virtualized_env & is_g_stage_q)) &&
+                         ((ptecache_entry[i].vs_enable == (is_virtualized_env & is_vs_stage)) && !(is_virtualized_env & is_vs_stage & (~allow_vs_req_q))) &&
+                         ptecache_entry[i].valid) ? 1'b1 : 1'b0;
         valid_vector[i] = ptecache_entry[i].valid;
     end
 end
@@ -342,20 +409,28 @@ genvar j;
 generate
     for (j = 0; j < (LEVELS-1); j++) begin
         logic [63:0] aux_resp_ppn_lvl;
+        logic [63:0] g_aux_resp_ppn_lvl;
         assign aux_resp_ppn_lvl = {{(64-$bits(r_resp_ppn[63:(LEVELS-j-1)*PAGE_LVL_BITS])-$bits(r_req.vpn[PAGE_LVL_BITS*(LEVELS-j-1)-1:0])){1'b0}}, 
                                     r_resp_ppn[63:(LEVELS-j-1)*PAGE_LVL_BITS], 
                                     r_req.vpn[PAGE_LVL_BITS*(LEVELS-j-1)-1:0]};
         assign resp_ppn_lvl[j] = aux_resp_ppn_lvl[PPN_SIZE-1:0];
+        
+        assign g_aux_resp_ppn_lvl = {'0, {r_resp_ppn[63:(LEVELS-j-1)*PAGE_LVL_BITS], vs_pte_addr_reg_q[PAGE_LVL_BITS*(LEVELS-j-1)-1+12:12]}};
+        assign g_resp_ppn_lvl[j] = g_aux_resp_ppn_lvl[PPN_SIZE-1:0];
     end
 endgenerate
 assign resp_ppn_lvl[LEVELS-1] = r_resp_ppn[PPN_SIZE-1:0];
 assign resp_ppn = resp_ppn_lvl[count_q];
 
+assign g_resp_ppn_lvl[LEVELS-1] = r_resp_ppn[PPN_SIZE-1:0];
+assign g_resp_ppn = g_resp_ppn_lvl[count_q];
+
 // Send TLB Response to Arb
 assign ptw_tlb_comm.resp.valid = resp_val;
 assign ptw_tlb_comm.resp.error = resp_err;
+assign ptw_tlb_comm.resp.g_stage_error = resp_err & is_g_stage_q;
 assign ptw_tlb_comm.resp.level = count_q;
-assign ptw_tlb_comm.resp.pte.ppn = resp_ppn;
+assign ptw_tlb_comm.resp.pte.ppn = is_virtualized_env? g_resp_ppn : resp_ppn;
 assign ptw_tlb_comm.resp.pte.rfs = r_pte.rfs;
 assign ptw_tlb_comm.resp.pte.d = r_pte.d;
 assign ptw_tlb_comm.resp.pte.a = r_pte.a;
@@ -365,19 +440,39 @@ assign ptw_tlb_comm.resp.pte.x = r_pte.x;
 assign ptw_tlb_comm.resp.pte.w = r_pte.w;
 assign ptw_tlb_comm.resp.pte.r = r_pte.r;
 assign ptw_tlb_comm.resp.pte.v = r_pte.v;
+assign ptw_tlb_comm.resp.virt_level = virt_level_q;
+assign ptw_tlb_comm.resp.guest_pte = guest_pte_q;
 assign ptw_tlb_comm.ptw_ready = ptw_ready;
-assign ptw_tlb_comm.ptw_status = csr_ptw_comm_i.mstatus;
+assign ptw_tlb_comm.ptw_mstatus = csr_ptw_comm_i.mstatus;
+assign ptw_tlb_comm.ptw_vsstatus = csr_ptw_comm_i.vsstatus;
 assign ptw_tlb_comm.invalidate_tlb = csr_ptw_comm_i.flush;
+assign ptw_tlb_comm.invalidate_tlb_satp  = csr_ptw_comm_i.flush_satp;
+assign ptw_tlb_comm.invalidate_tlb_vsatp = csr_ptw_comm_i.flush_vsatp;
+assign ptw_tlb_comm.invalidate_tlb_hgatp = csr_ptw_comm_i.flush_hgatp;
 
 // Page-Table Walker FSM 
 always_ff @(posedge clk_i, negedge rstn_i) begin
     if (!rstn_i) begin
         current_state <= S_READY;
         count_q <= '0;
+        allow_vs_req_q <= 1'b0;
+        is_g_stage_q <= 1'b0;
+        vs_pte_addr_reg_q <= '0;
+        vs_count_reg_q <= '0;
+        last_g_stage_q <= '0;
+        guest_pte_q <= '0;
+        virt_level_q <= 0;
     end
     else begin
         current_state <= next_state;
         count_q <= count_d;
+        allow_vs_req_q <= allow_vs_req_d;
+        is_g_stage_q <= is_g_stage_d;
+        vs_pte_addr_reg_q <= vs_pte_addr_reg_d;
+        vs_count_reg_q <= vs_count_reg_d;
+        last_g_stage_q <= last_g_stage_d;
+        guest_pte_q <= guest_pte_d;
+        virt_level_q <= virt_level_d;
     end
 end
 
@@ -388,11 +483,29 @@ always_comb begin
     pmu_ptw_miss_o = 1'b0;
     ptw_dmem_comm_o.req.valid = 1'b0;
     next_state = current_state;
+    allow_vs_req_d = allow_vs_req_q;
+    is_g_stage_d = is_g_stage_q;
+    vs_pte_addr_reg_d = vs_pte_addr_reg_q;
+    vs_count_reg_d = vs_count_reg_q;
+    last_g_stage_d = last_g_stage_q;
+    guest_pte_d = guest_pte_q;
+    virt_level_d = virt_level_q;
     case (current_state)
         S_READY : begin
+            guest_pte_d = '0;
+            virt_level_d = 0;
             count_d = '0;
-            if (tlb_ptw_comm.req.valid) next_state = S_REQ;
-            else next_state = S_READY;
+            allow_vs_req_d = 1'b0;
+            is_g_stage_d = 1'b0;
+            vs_count_reg_d = '0;
+            vs_pte_addr_reg_d = '0;
+            last_g_stage_d = '0;
+            if (tlb_ptw_comm.req.valid) begin
+              next_state = S_REQ;
+            end
+            else begin
+              next_state = S_READY;
+            end
         end
         S_REQ : begin
             ptw_dmem_comm_o.req.valid = 1'b1;
@@ -400,11 +513,21 @@ always_comb begin
                 ptw_dmem_comm_o.req.valid = 1'b0;
                 pmu_ptw_hit_o = 1'b1;
                 count_d = count[1:0];
+                allow_vs_req_d = 1'b0;
+                if (is_virtualized_env & is_g_stage_q) begin
+                    allow_vs_req_d = 1'b1;
+                end
                 next_state = S_REQ;
             end else if (dmem_ptw_comm_i.dmem_ready) begin
                 next_state = S_WAIT;
             end else begin
                 next_state = S_REQ;
+            end
+            if (is_virtualized_env & r_req.en_g & is_vs_stage & ~allow_vs_req_q) begin
+              ptw_dmem_comm_o.req.valid = 1'b0;
+              pmu_ptw_hit_o = 1'b0;
+              count_d = count_q;
+              next_state = S_VS_TO_G;
             end
         end
         S_WAIT : begin
@@ -417,8 +540,14 @@ always_comb begin
                     count_d = count[1:0];
                     pmu_ptw_miss_o = 1'b1;
                     next_state = S_REQ;
+                    allow_vs_req_d = 1'b0;
                 end else if (is_pte_leaf) begin
                     next_state = S_DONE;
+                    if (is_virtualized_env & is_g_stage_q & ~last_g_stage_q) next_state = S_G_TO_VS;
+                    if (is_virtualized_env & r_req.en_g & is_vs_stage) begin
+                      last_g_stage_d = 1'b1;
+                      next_state = S_VS_TO_G;
+                    end
                 end 
                 else begin
                     next_state = S_ERROR;
@@ -427,6 +556,32 @@ always_comb begin
             else begin 
                 next_state = S_WAIT;
             end
+        end
+        S_VS_TO_G : begin
+          is_g_stage_d = 1'b1;
+          if (g_stage_only) last_g_stage_d = 1'b1;
+          vs_count_reg_d = count_q;
+          vs_pte_addr_reg_d = aux_pte_addr[SIZE_VADDR:0] ; // For Sv39: (r_pte.ppn << 12) + (vpn_idx << 3)
+          count_d = '0;
+          virt_level_d   = count_q;
+          guest_pte_d.ppn = resp_ppn;
+          guest_pte_d.rfs = r_pte.rfs;
+          guest_pte_d.d = g_stage_only ? 1'b1 : r_pte.d;
+          guest_pte_d.a = g_stage_only ? 1'b1 : r_pte.a;
+          guest_pte_d.g = g_stage_only ? 1'b0 : r_pte.g;
+          guest_pte_d.u = g_stage_only ? 1'b0 : r_pte.u;
+          guest_pte_d.x = g_stage_only ? 1'b1 : r_pte.x;
+          guest_pte_d.w = g_stage_only ? 1'b1 : r_pte.w;
+          guest_pte_d.r = g_stage_only ? 1'b1 : r_pte.r;
+          guest_pte_d.v = g_stage_only ? 1'b1 : r_pte.v;
+          next_state = S_REQ;
+          if(|aux_pte_addr[63:41]) next_state = S_ERROR; // Translation is a G-stage: Address bits 63:41 must all be zeros, or else a guest-page-fault exception occurs
+        end
+        S_G_TO_VS : begin
+          is_g_stage_d = 1'b0;
+          count_d = vs_count_reg_q;
+          allow_vs_req_d = 1'b1;
+          next_state = S_REQ;
         end
         S_DONE : begin
             next_state = S_READY;

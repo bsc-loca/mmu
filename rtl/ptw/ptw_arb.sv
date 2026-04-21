@@ -67,21 +67,35 @@ always_comb begin
 
     ptw_itlb_comm_o.resp.valid = 1'b0;
     ptw_itlb_comm_o.resp.error = 1'b0;
+    ptw_itlb_comm_o.resp.g_stage_error = 1'b0;
     ptw_itlb_comm_o.resp.pte = '0;
+    ptw_itlb_comm_o.resp.guest_pte = '0;
     ptw_itlb_comm_o.resp.level = '0;
+    ptw_itlb_comm_o.resp.virt_level = '0;
     ptw_dtlb_comm_o.resp.valid = 1'b0;
     ptw_dtlb_comm_o.resp.error = 1'b0;
+    ptw_dtlb_comm_o.resp.g_stage_error = 1'b0;
     ptw_dtlb_comm_o.resp.pte = '0;
+    ptw_dtlb_comm_o.resp.guest_pte = '0;
     ptw_dtlb_comm_o.resp.level = '0;
+    ptw_dtlb_comm_o.resp.virt_level = '0;
 
     ptw_itlb_comm_o.ptw_ready = 1'b0;
     ptw_dtlb_comm_o.ptw_ready = 1'b0;
 
-    ptw_itlb_comm_o.ptw_status = ptw_tlb_comm_i.ptw_status;
-    ptw_dtlb_comm_o.ptw_status = ptw_tlb_comm_i.ptw_status;
+    ptw_itlb_comm_o.ptw_mstatus  = ptw_tlb_comm_i.ptw_mstatus;
+    ptw_itlb_comm_o.ptw_vsstatus = ptw_tlb_comm_i.ptw_vsstatus;
+    ptw_dtlb_comm_o.ptw_mstatus  = ptw_tlb_comm_i.ptw_mstatus;
+    ptw_dtlb_comm_o.ptw_vsstatus = ptw_tlb_comm_i.ptw_vsstatus;
     
-    ptw_itlb_comm_o.invalidate_tlb = ptw_tlb_comm_i.invalidate_tlb;
-    ptw_dtlb_comm_o.invalidate_tlb = ptw_tlb_comm_i.invalidate_tlb;
+    ptw_itlb_comm_o.invalidate_tlb       = ptw_tlb_comm_i.invalidate_tlb;
+    ptw_itlb_comm_o.invalidate_tlb_satp = ptw_tlb_comm_i.invalidate_tlb_satp;
+    ptw_itlb_comm_o.invalidate_tlb_vsatp = ptw_tlb_comm_i.invalidate_tlb_vsatp;
+    ptw_itlb_comm_o.invalidate_tlb_hgatp = ptw_tlb_comm_i.invalidate_tlb_hgatp;
+    ptw_dtlb_comm_o.invalidate_tlb       = ptw_tlb_comm_i.invalidate_tlb;
+    ptw_dtlb_comm_o.invalidate_tlb_satp = ptw_tlb_comm_i.invalidate_tlb_satp;
+    ptw_dtlb_comm_o.invalidate_tlb_vsatp = ptw_tlb_comm_i.invalidate_tlb_vsatp;
+    ptw_dtlb_comm_o.invalidate_tlb_hgatp = ptw_tlb_comm_i.invalidate_tlb_hgatp;
 
     case (current_state)
         IDLE : begin
