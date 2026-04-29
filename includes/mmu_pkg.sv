@@ -33,6 +33,9 @@ parameter PTESIZE = 8;
 parameter TLB_ENTRIES = 8;
 parameter TLB_IDX_SIZE = $clog2(TLB_ENTRIES);
 
+parameter NAPOT_BITS = 4;
+parameter [3:0] NAPOT_PPN_ENCODING = 4'b1000;
+
 parameter PTW_CACHE_SIZE = $clog2(LEVELS*2);
 
 parameter [1:0] GIGA_PAGE = 2'b00;  // 1 GiB Page
@@ -40,6 +43,8 @@ parameter [1:0] MEGA_PAGE = 2'b01;  // 2 MiB Page
 parameter [1:0] KILO_PAGE = 2'b10;  // 4 KiB Page
 
 typedef struct packed {
+    logic n;
+    logic [8:0] reserved;
     logic [PPN_SIZE-1:0] ppn; 
     logic [1:0] rfs;
     logic d;
@@ -204,6 +209,7 @@ typedef struct packed {
     logic                   g_enable;
     logic                   vs_enable;
     logic                   g_stage_error;   // In case an error occured during the G stage
+    logic                   napot;  // NAPOT translation contiguity (Svnapot) 
 } tlb_entry_t;                      // TLB page entry.
 
 typedef struct packed {
