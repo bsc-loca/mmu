@@ -89,6 +89,7 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
             tlb_entries[write_idx].valid <= !ptw_tlb_comm_i.resp.error;
             tlb_entries[write_idx].g_stage_error <= ptw_tlb_comm_i.resp.g_stage_error;
             tlb_entries[write_idx].nempty <= 1'b1;
+            tlb_entries[write_idx].napot <= ptw_tlb_comm_i.resp.pte.n;
             // virtual ppn
             tlb_entries[write_idx].g_enable <= is_virtualized_env && g_enable;
             tlb_entries[write_idx].vs_enable <= is_virtualized_env && vs_enable;
@@ -128,7 +129,7 @@ always_comb begin
         for (i = 0; i < TLB_ENTRIES; i++) begin
             hits_g[i] = (((tlb_entries[i].vs_enable == vs_enable) && (tlb_entries[i].g_enable == g_enable)) && (tlb_entries[i].vpn[28:18] == cache_vpn[28:18]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].level == GIGA_PAGE)) ? 1'b1 : 1'b0;
             hits_m[i] = (((tlb_entries[i].vs_enable == vs_enable) && (tlb_entries[i].g_enable == g_enable)) && (tlb_entries[i].vpn[28:9] == cache_vpn[28:9]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].level == MEGA_PAGE)) ? 1'b1 : 1'b0;
-            hits_k[i] = (((tlb_entries[i].vs_enable == vs_enable) && (tlb_entries[i].g_enable == g_enable)) && (tlb_entries[i].vpn[28:0] == cache_vpn[28:0]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].level == KILO_PAGE)) ? 1'b1 : 1'b0;
+            hits_k[i] = (((tlb_entries[i].vs_enable == vs_enable) && (tlb_entries[i].g_enable == g_enable)) && (tlb_entries[i].napot ? (tlb_entries[i].vpn[28:NAPOT_BITS] == cache_vpn[28:NAPOT_BITS]) : (tlb_entries[i].vpn[28:0] == cache_vpn[28:0])) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].level == KILO_PAGE)) ? 1'b1 : 1'b0;
             virt_hits_g[i] = (((tlb_entries[i].vs_enable == vs_enable) && (tlb_entries[i].g_enable == g_enable)) && (tlb_entries[i].vpn[28:18] == cache_vpn[28:18]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].virt_level == GIGA_PAGE)) ? 1'b1 : 1'b0;
             virt_hits_m[i] = (((tlb_entries[i].vs_enable == vs_enable) && (tlb_entries[i].g_enable == g_enable)) && (tlb_entries[i].vpn[28:9] == cache_vpn[28:9]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].virt_level == MEGA_PAGE)) ? 1'b1 : 1'b0;
             virt_hits_k[i] = (((tlb_entries[i].vs_enable == vs_enable) && (tlb_entries[i].g_enable == g_enable)) && (tlb_entries[i].vpn[28:0] == cache_vpn[28:0]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].virt_level == KILO_PAGE)) ? 1'b1 : 1'b0;
@@ -137,7 +138,7 @@ always_comb begin
         for (i = 0; i < TLB_ENTRIES; i++) begin
             hits_g[i] = (((tlb_entries[i].vs_enable == vs_enable) && (tlb_entries[i].g_enable == g_enable)) && (tlb_entries[i].vpn[26:18] == cache_vpn[26:18]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].level == GIGA_PAGE)) ? 1'b1 : 1'b0;
             hits_m[i] = (((tlb_entries[i].vs_enable == vs_enable) && (tlb_entries[i].g_enable == g_enable)) && (tlb_entries[i].vpn[26:9] == cache_vpn[26:9]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].level == MEGA_PAGE)) ? 1'b1 : 1'b0;
-            hits_k[i] = (((tlb_entries[i].vs_enable == vs_enable) && (tlb_entries[i].g_enable == g_enable)) && (tlb_entries[i].vpn[26:0] == cache_vpn[26:0]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].level == KILO_PAGE)) ? 1'b1 : 1'b0;
+            hits_k[i] = (((tlb_entries[i].vs_enable == vs_enable) && (tlb_entries[i].g_enable == g_enable)) && (tlb_entries[i].napot ? (tlb_entries[i].vpn[26:NAPOT_BITS] == cache_vpn[26:NAPOT_BITS]) : (tlb_entries[i].vpn[26:0] == cache_vpn[26:0])) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].level == KILO_PAGE)) ? 1'b1 : 1'b0;
             virt_hits_g[i] = (((tlb_entries[i].vs_enable == vs_enable) && (tlb_entries[i].g_enable == g_enable)) && (tlb_entries[i].vpn[26:18] == cache_vpn[26:18]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].virt_level == GIGA_PAGE)) ? 1'b1 : 1'b0;
             virt_hits_m[i] = (((tlb_entries[i].vs_enable == vs_enable) && (tlb_entries[i].g_enable == g_enable)) && (tlb_entries[i].vpn[26:9] == cache_vpn[26:9]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].virt_level == MEGA_PAGE)) ? 1'b1 : 1'b0;
             virt_hits_k[i] = (((tlb_entries[i].vs_enable == vs_enable) && (tlb_entries[i].g_enable == g_enable)) && (tlb_entries[i].vpn[26:0] == cache_vpn[26:0]) && (tlb_entries[i].vmid == cache_vmid) && tlb_entries[i].nempty && (tlb_entries[i].virt_level == KILO_PAGE)) ? 1'b1 : 1'b0;
@@ -146,7 +147,7 @@ always_comb begin
         for (i = 0; i < TLB_ENTRIES; i++) begin
             hits_g[i] = (!(tlb_entries[i].vs_enable || tlb_entries[i].g_enable) && (tlb_entries[i].vpn[26:18] == cache_vpn[26:18]) && (tlb_entries[i].asid == cache_asid) && tlb_entries[i].nempty && (tlb_entries[i].level == GIGA_PAGE)) ? 1'b1 : 1'b0;
             hits_m[i] = (!(tlb_entries[i].vs_enable || tlb_entries[i].g_enable) && (tlb_entries[i].vpn[26:9] == cache_vpn[26:9]) && (tlb_entries[i].asid == cache_asid) && tlb_entries[i].nempty && (tlb_entries[i].level == MEGA_PAGE)) ? 1'b1 : 1'b0;
-            hits_k[i] = (!(tlb_entries[i].vs_enable || tlb_entries[i].g_enable) && (tlb_entries[i].vpn[26:0] == cache_vpn[26:0]) && (tlb_entries[i].asid == cache_asid) && tlb_entries[i].nempty && (tlb_entries[i].level == KILO_PAGE)) ? 1'b1 : 1'b0;
+            hits_k[i] = (!(tlb_entries[i].vs_enable || tlb_entries[i].g_enable) && (tlb_entries[i].napot ? (tlb_entries[i].vpn[26:NAPOT_BITS] == cache_vpn[26:NAPOT_BITS]) : (tlb_entries[i].vpn[26:0] == cache_vpn[26:0])) && (tlb_entries[i].asid == cache_asid) && tlb_entries[i].nempty && (tlb_entries[i].level == KILO_PAGE)) ? 1'b1 : 1'b0;
             virt_hits_g[i] = '0;
             virt_hits_m[i] = '0;
             virt_hits_k[i] = '0;
@@ -514,7 +515,7 @@ assign guest_ppn = tlb_entries[hit_idx].g_enable ?
     {{(PPN_SIZE-VPN_MAX_SIZE-1){1'b0}}, cache_vpn & {(VPN_MAX_SIZE+1){~(vm_enable & ~passthrough)}}}:
     {{(PPN_SIZE-VPN_SIZE-1){1'b0}}, cache_vpn[VPN_SIZE:0] & {(VPN_SIZE+1){~(vm_enable & ~passthrough)}}}))) : '0;
 
-assign ppn_k = tlb_entries[hit_idx].ppn;
+assign ppn_k = tlb_entries[hit_idx].napot ? {tlb_entries[hit_idx].ppn[PPN_SIZE-1:NAPOT_BITS], cache_vpn[NAPOT_BITS-1:0]} : tlb_entries[hit_idx].ppn;
 assign ppn_m = (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) ? {tlb_entries[hit_idx].ppn >> PAGE_LVL_BITS, guest_ppn[PAGE_LVL_BITS-1:0]}
                                   : {tlb_entries[hit_idx].ppn >> PAGE_LVL_BITS, cache_vpn[PAGE_LVL_BITS-1:0]};
 assign ppn_g = (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) ? {tlb_entries[hit_idx].ppn >> (PAGE_LVL_BITS * 2), guest_ppn[PAGE_LVL_BITS*2-1:0]}
