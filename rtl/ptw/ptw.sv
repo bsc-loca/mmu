@@ -184,7 +184,7 @@ assign valid_pte_lvl[LEVELS-1] = dmem_ptw_comm_i.resp.data[0];
 assign pte.v = valid_pte_lvl[count_q];
 
 assign invalid_pte = ((({1'b0, dmem_ptw_comm_i.resp.data[62:54], dmem_ptw_comm_i.resp.data[PPN_SIZE+9:10]} >> (PPN_SIZE+9)) != '0) || //Make sure that PBMT and Reserved are 0
-                      (pte.n && is_pte_leaf && (pte.pnn[NAPOT_BITS-1:0] != NAPOT_PPN_ENCODING)) ||
+                      (pte.n && is_pte_leaf && (pte.ppn[NAPOT_BITS-1:0] != NAPOT_PPN_ENCODING)) ||
                       ((is_pte_table & pte.v & (pte.d || pte.a || pte.u))) ||
                       (is_pte_leaf && is_g_stage_q && !pte.u) || //For G-stage address translation, all memory accesses (including those made to access data structures for VS-stage address translation) are considered to be user-level accesses
                       (is_pte_leaf && !pte.r && pte.w)) //if pte.r=0 and pte.w=1, or if any bits or encodings that are reserved for future standard use are set within pte, stop and raise a page-fault exception corresponding to the original access type
