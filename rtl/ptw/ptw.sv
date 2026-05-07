@@ -158,6 +158,7 @@ assign g_vpn_idx = g_vpn_req[count_q];
 
 // Formatting pte data from dmem
 assign pte.n   = dmem_ptw_comm_i.resp.data[63];
+assign pte.reserved = dmem_ptw_comm_i.resp.data[62:54];
 assign pte.ppn = dmem_ptw_comm_i.resp.data[10+:(PPN_SIZE)];
 assign pte.rfs = dmem_ptw_comm_i.resp.data[9:8];
 assign pte.d = dmem_ptw_comm_i.resp.data[7];
