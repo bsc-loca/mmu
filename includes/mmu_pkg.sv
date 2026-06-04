@@ -44,7 +44,8 @@ parameter [1:0] KILO_PAGE = 2'b10;  // 4 KiB Page
 
 typedef struct packed {
     logic n;
-    logic [8:0] reserved;
+    logic [1:0] pbmt;
+    logic [6:0] reserved;
     logic [PPN_SIZE-1:0] ppn; 
     logic [1:0] rfs;
     logic d;
@@ -120,6 +121,7 @@ typedef struct packed {
     logic                miss;      // If the translation request missed set to 1 Otherwise, the rest of the signals have valid information of the response.
     logic [PPN_SIZE-1:0] ppn;       // Physical page number.
     logic [PPN_SIZE-1:0] guest_ppn; // Guest physical page number.
+    logic [1:0]          pbmt;      // Page-based memory type (Svpbmt).
     tlb_ex_t             xcpt;      // Exceptions produced by the requests.
     tlb_ex_t             guest_xcpt; // Exceptions produced by the guest ppn in virtualized case.
     logic [7:0]          hit_idx;   // CAM hit index of the translation request.
@@ -209,6 +211,7 @@ typedef struct packed {
     logic                   g_enable;
     logic                   vs_enable;
     logic                   g_stage_error;   // In case an error occured during the G stage
+    logic [1:0]             pbmt;   // Page-based memory type (Svpbmt).
     logic                   napot;  // NAPOT translation contiguity (Svnapot) 
 } tlb_entry_t;                      // TLB page entry.
 
