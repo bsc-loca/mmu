@@ -188,7 +188,9 @@ assign pte.v = valid_pte_lvl[count_q];
 assign invalid_pte = ((pte.n && is_pte_leaf && (pte.ppn[NAPOT_BITS-1:0] != NAPOT_PPN_ENCODING)) ||
                       (dmem_ptw_comm_i.resp.data[60:54] != 7'b0) ||        // Bits Reserved [60:54]
                       (is_pte_table && (pte.pbmt != 2'b00)) ||              // Non-leaf PTE: PBMT must be zero
-                      (is_pte_leaf  && (pte.pbmt == 2'b11)) ||              // PBMT=11 reserved
+                      (is_pte_leaf  && (pte.pbmt == 2'b11)) ||              // PBMT=11 always reserved
+                      (is_pte_leaf  && (pte.pbmt != 2'b00) && ~is_vs_stage && !csr_ptw_comm_i.menvcfg_pbmte) || // S/G-stage: PBMT reserved when menvcfg.PBMTE=0
+                      (is_pte_leaf  && (pte.pbmt != 2'b00) &&  is_vs_stage && !csr_ptw_comm_i.henvcfg_pbmte) || // VS-stage: PBMT reserved when henvcfg.PBMTE=0
                       ((is_pte_table & pte.v & (pte.d || pte.a || pte.u))) ||
                       (is_pte_leaf && is_g_stage_q && !pte.u) || //For G-stage address translation, all memory accesses (including those made to access data structures for VS-stage address translation) are considered to be user-level accesses
                       (is_pte_leaf && !pte.r && pte.w)) //if pte.r=0 and pte.w=1, or if any bits or encodings that are reserved for future standard use are set within pte, stop and raise a page-fault exception corresponding to the original access type
@@ -437,7 +439,7 @@ assign ptw_tlb_comm.resp.error = resp_err;
 assign ptw_tlb_comm.resp.g_stage_error = resp_err & is_g_stage_q;
 assign ptw_tlb_comm.resp.level = count_q;
 assign ptw_tlb_comm.resp.pte.n = r_pte.n;
-assign ptw_tlb_comm.resp.pte.pbmt = r_pte.pbmt;
+assign ptw_tlb_comm.resp.pte.pbmt = (r_pte.pbmt > guest_pte_q.pbmt) ? r_pte.pbmt : guest_pte_q.pbmt;
 assign ptw_tlb_comm.resp.pte.ppn = is_virtualized_env? g_resp_ppn : resp_ppn;
 assign ptw_tlb_comm.resp.pte.rfs = r_pte.rfs;
 assign ptw_tlb_comm.resp.pte.d = r_pte.d;
