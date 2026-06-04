@@ -89,6 +89,7 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
             tlb_entries[write_idx].valid <= !ptw_tlb_comm_i.resp.error;
             tlb_entries[write_idx].g_stage_error <= ptw_tlb_comm_i.resp.g_stage_error;
             tlb_entries[write_idx].nempty <= 1'b1;
+            tlb_entries[write_idx].pbmt <= ptw_tlb_comm_i.resp.pte.pbmt;
             tlb_entries[write_idx].napot <= ptw_tlb_comm_i.resp.pte.n;
             // virtual ppn
             tlb_entries[write_idx].g_enable <= is_virtualized_env && g_enable;
@@ -540,6 +541,7 @@ assign tlb_cache_comm_o.resp.xcpt.fetch = xcpt_if;
 assign tlb_cache_comm_o.resp.guest_xcpt.load = tlb_entries[hit_idx].g_enable & guest_xcpt_ld;
 assign tlb_cache_comm_o.resp.guest_xcpt.store = tlb_entries[hit_idx].g_enable & guest_xcpt_st;
 assign tlb_cache_comm_o.resp.guest_xcpt.fetch = tlb_entries[hit_idx].g_enable & guest_xcpt_if;
+assign tlb_cache_comm_o.resp.pbmt = tlb_entries[hit_idx].pbmt;
 
 assign tlb_cache_comm_o.tlb_ready = tlb_ready; 
 
