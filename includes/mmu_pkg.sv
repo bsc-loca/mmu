@@ -298,6 +298,8 @@ typedef struct packed {
     logic flush_hgatp;
     csr_mstatus_t mstatus;
     csr_mstatus_t vsstatus;
+    logic menvcfg_pbmte;
+    logic henvcfg_pbmte;
 } csr_ptw_comm_t;
 
 endpackage
