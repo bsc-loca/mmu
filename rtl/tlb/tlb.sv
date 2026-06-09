@@ -205,11 +205,11 @@ always_comb begin
     if (cache_tlb_comm_i.req.store) begin
         if(tlb_entries[hit_idx].dirty) begin // dirty page, no problem
             store_hit = 1'b1;
-        end else if (!write_ok) begin // we dont have write perms, so hit in order to raise STORE xcpt
+        end else if (!write_ok || !tlb_entries[hit_idx].valid) begin // no write perms OR PTW error entry -> hit to raise STORE xcpt
             store_hit = 1'b1;
         end else begin // we have the right permissions, but the page is not set as dirty, we have to mark it as so in the PT
             store_hit = 1'b0;
-        end     
+        end
     end else begin // not a store, no problem
         store_hit = 1'b1;
     end
@@ -477,17 +477,17 @@ assign exec_ok = (sv_priv_lvl & ~is_virtualized_env) ? tlb_entries[hit_idx].perm
 assign virt_exec_ok = (sv_priv_lvl) ? tlb_entries[hit_idx].virt_perms.sx : tlb_entries[hit_idx].virt_perms.ux;
 
 logic xcpt_if, xcpt_st, xcpt_ld;
-assign xcpt_if = (vm_enable && 
-                      ((~(tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !exec_ok) || tlb_entry_access_is_zero))
-                    || ((~tlb_entries[hit_idx].g_stage_error && tlb_entries[hit_idx].g_enable) && ((tlb_hit && !virt_exec_ok) || tlb_entry_virt_access_is_zero)))
+assign xcpt_if = (vm_enable &&
+                      ((~(tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && (!exec_ok || !tlb_entries[hit_idx].valid)) || tlb_entry_access_is_zero))
+                    || ((~tlb_entries[hit_idx].g_stage_error && tlb_entries[hit_idx].g_enable) && ((tlb_hit && (!virt_exec_ok || !tlb_entries[hit_idx].valid)) || tlb_entry_virt_access_is_zero)))
                   ) ? 1'b1 : 1'b0;
-assign xcpt_st = (vm_enable && 
-                      ((~(tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !write_ok) || tlb_entry_access_is_zero || tlb_entry_dirty_is_zero))
-                    || ((~tlb_entries[hit_idx].g_stage_error && tlb_entries[hit_idx].g_enable) && ((tlb_hit && !virt_write_ok) || tlb_entry_virt_access_is_zero || tlb_entry_virt_dirty_is_zero)))
+assign xcpt_st = (vm_enable &&
+                      ((~(tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && (!write_ok || !tlb_entries[hit_idx].valid)) || tlb_entry_access_is_zero || tlb_entry_dirty_is_zero))
+                    || ((~tlb_entries[hit_idx].g_stage_error && tlb_entries[hit_idx].g_enable) && ((tlb_hit && (!virt_write_ok || !tlb_entries[hit_idx].valid)) || tlb_entry_virt_access_is_zero || tlb_entry_virt_dirty_is_zero)))
                   ) ? 1'b1 : 1'b0;
-assign xcpt_ld = (vm_enable && 
-                      ((~(tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !read_ok) || tlb_entry_access_is_zero))
-                    || ((~tlb_entries[hit_idx].g_stage_error && tlb_entries[hit_idx].g_enable) && ((tlb_hit && !virt_read_ok) || tlb_entry_virt_access_is_zero)))
+assign xcpt_ld = (vm_enable &&
+                      ((~(tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && (!read_ok || !tlb_entries[hit_idx].valid)) || tlb_entry_access_is_zero))
+                    || ((~tlb_entries[hit_idx].g_stage_error && tlb_entries[hit_idx].g_enable) && ((tlb_hit && (!virt_read_ok || !tlb_entries[hit_idx].valid)) || tlb_entry_virt_access_is_zero)))
                   ) ? 1'b1 : 1'b0;
 
 logic guest_xcpt_if, guest_xcpt_st, guest_xcpt_ld;
