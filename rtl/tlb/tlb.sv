@@ -549,7 +549,7 @@ assign tlb_cache_comm_o.resp.access_fault = tlb_hit
 assign tlb_cache_comm_o.resp.guest_xcpt.load = tlb_entries[hit_idx].g_enable & guest_xcpt_ld;
 assign tlb_cache_comm_o.resp.guest_xcpt.store = tlb_entries[hit_idx].g_enable & guest_xcpt_st;
 assign tlb_cache_comm_o.resp.guest_xcpt.fetch = tlb_entries[hit_idx].g_enable & guest_xcpt_if;
-assign tlb_cache_comm_o.resp.pbmt = tlb_entries[hit_idx].pbmt;
+assign tlb_cache_comm_o.resp.pbmt = (vm_enable & hit_cam & ~passthrough) ? tlb_entries[hit_idx].pbmt : 2'b00;
 
 assign tlb_cache_comm_o.tlb_ready = tlb_ready; 
 
