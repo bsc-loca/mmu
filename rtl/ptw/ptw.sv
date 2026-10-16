@@ -105,6 +105,7 @@ logic [1:0] prv_req;
 logic perm_ok;
 
 logic resp_err, resp_val;
+logic access_fault_d, access_fault_q;
 logic [63:0] r_resp_ppn;
 logic [PPN_SIZE-1:0] resp_ppn_lvl [LEVELS-1:0];
 logic [PPN_SIZE-1:0] resp_ppn;
@@ -268,7 +269,9 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
         end
     end else begin
         access_hit <= 1'b0;
-        if (dmem_ptw_comm_i.resp.valid && is_pte_table && !pte_cache_hit) begin
+        // Never cache a non-leaf PTE that faulted (e.g. reserved D/A/U bits set): a later
+        // walk would hit it and skip the checks, so the access would no longer fault.
+        if (dmem_ptw_comm_i.resp.valid && is_pte_table && !invalid_pte && !pte_cache_hit) begin
             if (full_cache) begin
                 ptecache_entry[plru_eviction_idx].valid <= 1'b1;
                 ptecache_entry[plru_eviction_idx].g_enable <= is_virtualized_env & is_g_stage_q;
@@ -436,6 +439,7 @@ assign g_resp_ppn = g_resp_ppn_lvl[count_q];
 // Send TLB Response to Arb
 assign ptw_tlb_comm.resp.valid = resp_val;
 assign ptw_tlb_comm.resp.error = resp_err;
+assign ptw_tlb_comm.resp.access_fault = access_fault_q;
 assign ptw_tlb_comm.resp.g_stage_error = resp_err & is_g_stage_q;
 assign ptw_tlb_comm.resp.level = count_q;
 assign ptw_tlb_comm.resp.pte.n = r_pte.n;
@@ -472,6 +476,7 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
         last_g_stage_q <= '0;
         guest_pte_q <= '0;
         virt_level_q <= 0;
+        access_fault_q <= 1'b0;
     end
     else begin
         current_state <= next_state;
@@ -483,6 +488,7 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
         last_g_stage_q <= last_g_stage_d;
         guest_pte_q <= guest_pte_d;
         virt_level_q <= virt_level_d;
+        access_fault_q <= access_fault_d;
     end
 end
 
@@ -500,6 +506,7 @@ always_comb begin
     last_g_stage_d = last_g_stage_q;
     guest_pte_d = guest_pte_q;
     virt_level_d = virt_level_q;
+    access_fault_d = access_fault_q;
     case (current_state)
         S_READY : begin
             guest_pte_d = '0;
@@ -510,6 +517,7 @@ always_comb begin
             vs_count_reg_d = '0;
             vs_pte_addr_reg_d = '0;
             last_g_stage_d = '0;
+            access_fault_d = 1'b0;
             if (tlb_ptw_comm.req.valid) begin
               next_state = S_REQ;
             end
@@ -538,6 +546,15 @@ always_comb begin
               pmu_ptw_hit_o = 1'b0;
               count_d = count_q;
               next_state = S_VS_TO_G;
+            end
+            // A page-table read to an address outside mapped memory raises an access
+            // fault, not a page fault. We leave S_REQ immediately without waiting for a
+            // response; the adapter suppresses the dCache request itself. req.valid is
+            // deliberately left alone: gating it here would close a combinational loop
+            // req.addr -> not_mapped -> xcpt_af -> req.valid through the dmem structs.
+            if (ptw_dmem_comm_o.req.valid & dmem_ptw_comm_i.resp.xcpt_af) begin
+                access_fault_d = 1'b1;
+                next_state = S_ERROR;
             end
         end
         S_WAIT : begin

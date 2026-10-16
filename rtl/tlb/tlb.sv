@@ -87,6 +87,7 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
             tlb_entries[write_idx].perms.sw <= ptw_tlb_comm_i.resp.pte.w & !ptw_tlb_comm_i.resp.pte.u & ptw_tlb_comm_i.resp.pte.v;
             tlb_entries[write_idx].perms.sx <= ptw_tlb_comm_i.resp.pte.x & !ptw_tlb_comm_i.resp.pte.u & ptw_tlb_comm_i.resp.pte.v;
             tlb_entries[write_idx].valid <= !ptw_tlb_comm_i.resp.error;
+            tlb_entries[write_idx].access_fault <= ptw_tlb_comm_i.resp.access_fault;
             tlb_entries[write_idx].g_stage_error <= ptw_tlb_comm_i.resp.g_stage_error;
             tlb_entries[write_idx].nempty <= 1'b1;
             tlb_entries[write_idx].pbmt <= ptw_tlb_comm_i.resp.pte.pbmt;
@@ -537,6 +538,13 @@ assign tlb_cache_comm_o.resp.guest_ppn = guest_ppn;
 assign tlb_cache_comm_o.resp.xcpt.load = xcpt_ld;
 assign tlb_cache_comm_o.resp.xcpt.store = xcpt_st;
 assign tlb_cache_comm_o.resp.xcpt.fetch = xcpt_if;
+// Qualifies the xcpt.* above: the walk failed on a page-table read outside
+// mapped memory, so the requester must report an access fault, not a page fault.
+// Gated on hitting an entry the PTW marked as an error, so it can never relabel
+// an unrelated page fault (a permission or A/D-bit fault) as an access fault.
+assign tlb_cache_comm_o.resp.access_fault = tlb_hit
+                                          & ~tlb_entries[hit_idx].valid
+                                          & tlb_entries[hit_idx].access_fault;
 
 assign tlb_cache_comm_o.resp.guest_xcpt.load = tlb_entries[hit_idx].g_enable & guest_xcpt_ld;
 assign tlb_cache_comm_o.resp.guest_xcpt.store = tlb_entries[hit_idx].g_enable & guest_xcpt_st;

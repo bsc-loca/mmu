@@ -123,6 +123,9 @@ typedef struct packed {
     logic [PPN_SIZE-1:0] guest_ppn; // Guest physical page number.
     logic [1:0]          pbmt;      // Page-based memory type (Svpbmt).
     tlb_ex_t             xcpt;      // Exceptions produced by the requests.
+    logic                access_fault; // Qualifies xcpt: the walk failed on a page-table read
+                                       // to an address outside mapped memory, so the exception
+                                       // is an access fault rather than a page fault.
     tlb_ex_t             guest_xcpt; // Exceptions produced by the guest ppn in virtualized case.
     logic [7:0]          hit_idx;   // CAM hit index of the translation request.
 } tlb_cache_resp_t;                 // Translation response.
@@ -159,6 +162,7 @@ typedef struct packed {
 typedef struct packed {
     logic                      valid; // Translation response valid.
     logic                      error; // An error has ocurred with the translation request. Only check if the response is valid.
+    logic                      access_fault;    // The error is an access fault, not a page fault.
     logic                      g_stage_error;   // In case the error was during the G stage
     pte_t                      pte;   // Page table entry.
     pte_t                      guest_pte;   // guest Page table entry.
@@ -210,6 +214,7 @@ typedef struct packed {
     logic                   nempty; // The tlb entry is not empty, when the PTW sends a translation response that we don't have to ignore, it is set to 1.
     logic                   g_enable;
     logic                   vs_enable;
+    logic                   access_fault;    // The error is an access fault, not a page fault.
     logic                   g_stage_error;   // In case an error occured during the G stage
     logic [1:0]             pbmt;   // Page-based memory type (Svpbmt).
     logic                   napot;  // NAPOT translation contiguity (Svnapot) 
@@ -278,6 +283,7 @@ typedef struct packed {
     logic        xcpt_ma_st   ;
     logic        xcpt_pf_ld   ;
     logic        xcpt_pf_st   ;
+    logic        xcpt_af      ; // The page-table read address is outside mapped memory.
     logic        ordered      ;
 } dmem_ptw_resp_t;
 
