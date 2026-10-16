@@ -269,9 +269,12 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
         end
     end else begin
         access_hit <= 1'b0;
-        // Never cache a non-leaf PTE that faulted (e.g. reserved D/A/U bits set): a later
-        // walk would hit it and skip the checks, so the access would no longer fault.
-        if (dmem_ptw_comm_i.resp.valid && is_pte_table && !invalid_pte && !pte_cache_hit) begin
+        // Only cache non-leaf PTEs that the walk will actually follow: entries that raise a
+        // page fault (e.g. reserved A/D/U bits set on a non-leaf PTE) must never be cached,
+        // otherwise later walks take the S_REQ cache-hit shortcut and skip the invalid_pte
+        // check, losing the fault. Last-level entries are never consumed by that shortcut.
+        if (dmem_ptw_comm_i.resp.valid && is_pte_table && !invalid_pte &&
+            (count_q < $unsigned(LEVELS-1)) && !pte_cache_hit) begin
             if (full_cache) begin
                 ptecache_entry[plru_eviction_idx].valid <= 1'b1;
                 ptecache_entry[plru_eviction_idx].g_enable <= is_virtualized_env & is_g_stage_q;
