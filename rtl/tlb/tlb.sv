@@ -193,10 +193,10 @@ assign g_enable  = cache_tlb_comm_i.g_enable;
 assign is_virtualized_env = vs_enable | g_enable;
 assign passthrough = cache_tlb_comm_i.req.passthrough;
 
-assign tlb_entry_access_is_zero = ((tlb_entries[hit_idx].vs_enable == vs_enable) && (tlb_entries[hit_idx].g_enable == g_enable)) ? !tlb_entries[hit_idx].access && tlb_entries[hit_idx].valid : '0;
-assign tlb_entry_virt_access_is_zero = ((tlb_entries[hit_idx].vs_enable == vs_enable) && (tlb_entries[hit_idx].g_enable == g_enable)) ? !tlb_entries[hit_idx].virt_access && tlb_entries[hit_idx].valid : '0;
-assign tlb_entry_dirty_is_zero = ((tlb_entries[hit_idx].vs_enable == vs_enable) && (tlb_entries[hit_idx].g_enable == g_enable)) ? !store_hit && tlb_entries[hit_idx].valid : '0;
-assign tlb_entry_virt_dirty_is_zero = ((tlb_entries[hit_idx].vs_enable == vs_enable) && (tlb_entries[hit_idx].g_enable == g_enable)) ? !(~cache_tlb_comm_i.req.store | (cache_tlb_comm_i.req.store & (tlb_entries[hit_idx].virt_dirty | ~virt_write_ok))) && tlb_entries[hit_idx].valid : '0;
+assign tlb_entry_access_is_zero = hit_cam && ((tlb_entries[hit_idx].vs_enable == vs_enable) && (tlb_entries[hit_idx].g_enable == g_enable)) ? !tlb_entries[hit_idx].access && tlb_entries[hit_idx].valid : '0;
+assign tlb_entry_virt_access_is_zero = hit_cam && ((tlb_entries[hit_idx].vs_enable == vs_enable) && (tlb_entries[hit_idx].g_enable == g_enable)) ? !tlb_entries[hit_idx].virt_access && tlb_entries[hit_idx].valid : '0;
+assign tlb_entry_dirty_is_zero = hit_cam && ((tlb_entries[hit_idx].vs_enable == vs_enable) && (tlb_entries[hit_idx].g_enable == g_enable)) ? !store_hit && tlb_entries[hit_idx].valid : '0;
+assign tlb_entry_virt_dirty_is_zero = hit_cam && ((tlb_entries[hit_idx].vs_enable == vs_enable) && (tlb_entries[hit_idx].g_enable == g_enable)) ? !(~cache_tlb_comm_i.req.store | (cache_tlb_comm_i.req.store & (tlb_entries[hit_idx].virt_dirty | ~virt_write_ok))) && tlb_entries[hit_idx].valid : '0;
 
 assign tlb_hit = vm_enable && hit_cam && store_hit;
 assign tlb_miss = vm_enable && !(hit_cam);
@@ -492,9 +492,9 @@ assign xcpt_ld = (vm_enable &&
                   ) ? 1'b1 : 1'b0;
 
 logic guest_xcpt_if, guest_xcpt_st, guest_xcpt_ld;
-assign guest_xcpt_if = (vm_enable && (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !exec_ok) || (tlb_entries[hit_idx].g_stage_error || tlb_entry_access_is_zero))) ? 1'b1 : 1'b0;
-assign guest_xcpt_st = (vm_enable && (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !write_ok) || (tlb_entries[hit_idx].g_stage_error || tlb_entry_access_is_zero || tlb_entry_dirty_is_zero))) ? 1'b1 : 1'b0;
-assign guest_xcpt_ld = (vm_enable && (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !read_ok) || (tlb_entries[hit_idx].g_stage_error || tlb_entry_access_is_zero))) ? 1'b1 : 1'b0;
+assign guest_xcpt_if = (vm_enable && (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !exec_ok) || ((hit_cam && tlb_entries[hit_idx].g_stage_error) || tlb_entry_access_is_zero))) ? 1'b1 : 1'b0;
+assign guest_xcpt_st = (vm_enable && (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !write_ok) || ((hit_cam && tlb_entries[hit_idx].g_stage_error) || tlb_entry_access_is_zero || tlb_entry_dirty_is_zero))) ? 1'b1 : 1'b0;
+assign guest_xcpt_ld = (vm_enable && (tlb_entries[hit_idx].vs_enable || tlb_entries[hit_idx].g_enable) && ((tlb_hit && !read_ok) || ((hit_cam && tlb_entries[hit_idx].g_stage_error) || tlb_entry_access_is_zero))) ? 1'b1 : 1'b0;
 
 // PPN ASSIGNAMENT
 ///////////////////////////////
