@@ -67,6 +67,7 @@ always_comb begin
 
     ptw_itlb_comm_o.resp.valid = 1'b0;
     ptw_itlb_comm_o.resp.error = 1'b0;
+    ptw_itlb_comm_o.resp.access_fault = 1'b0;
     ptw_itlb_comm_o.resp.g_stage_error = 1'b0;
     ptw_itlb_comm_o.resp.pte = '0;
     ptw_itlb_comm_o.resp.guest_pte = '0;
@@ -74,6 +75,7 @@ always_comb begin
     ptw_itlb_comm_o.resp.virt_level = '0;
     ptw_dtlb_comm_o.resp.valid = 1'b0;
     ptw_dtlb_comm_o.resp.error = 1'b0;
+    ptw_dtlb_comm_o.resp.access_fault = 1'b0;
     ptw_dtlb_comm_o.resp.g_stage_error = 1'b0;
     ptw_dtlb_comm_o.resp.pte = '0;
     ptw_dtlb_comm_o.resp.guest_pte = '0;

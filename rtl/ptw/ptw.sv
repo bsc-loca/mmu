@@ -105,6 +105,7 @@ logic [1:0] prv_req;
 logic perm_ok;
 
 logic resp_err, resp_val;
+logic access_fault_d, access_fault_q;
 logic [63:0] r_resp_ppn;
 logic [PPN_SIZE-1:0] resp_ppn_lvl [LEVELS-1:0];
 logic [PPN_SIZE-1:0] resp_ppn;
@@ -157,6 +158,9 @@ endgenerate
 assign g_vpn_idx = g_vpn_req[count_q];
 
 // Formatting pte data from dmem
+assign pte.n   = dmem_ptw_comm_i.resp.data[63];
+assign pte.pbmt = dmem_ptw_comm_i.resp.data[62:61];
+assign pte.reserved = dmem_ptw_comm_i.resp.data[60:54];
 assign pte.ppn = dmem_ptw_comm_i.resp.data[10+:(PPN_SIZE)];
 assign pte.rfs = dmem_ptw_comm_i.resp.data[9:8];
 assign pte.d = dmem_ptw_comm_i.resp.data[7];
@@ -182,7 +186,12 @@ endgenerate
 assign valid_pte_lvl[LEVELS-1] = dmem_ptw_comm_i.resp.data[0];
 assign pte.v = valid_pte_lvl[count_q];
 
-assign invalid_pte = (((dmem_ptw_comm_i.resp.data >> (PPN_SIZE+10)) != '0) || //Make sure that N, PBMT and Reserved are 0
+assign invalid_pte = ((pte.n && is_pte_leaf && (pte.ppn[NAPOT_BITS-1:0] != NAPOT_PPN_ENCODING)) ||
+                      (dmem_ptw_comm_i.resp.data[60:54] != 7'b0) ||        // Bits Reserved [60:54]
+                      (is_pte_table && (pte.pbmt != 2'b00)) ||              // Non-leaf PTE: PBMT must be zero
+                      (is_pte_leaf  && (pte.pbmt == 2'b11)) ||              // PBMT=11 always reserved
+                      (is_pte_leaf  && (pte.pbmt != 2'b00) && ~is_vs_stage && !csr_ptw_comm_i.menvcfg_pbmte) || // S/G-stage: PBMT reserved when menvcfg.PBMTE=0
+                      (is_pte_leaf  && (pte.pbmt != 2'b00) &&  is_vs_stage && !csr_ptw_comm_i.henvcfg_pbmte) || // VS-stage: PBMT reserved when henvcfg.PBMTE=0
                       ((is_pte_table & pte.v & (pte.d || pte.a || pte.u))) ||
                       (is_pte_leaf && is_g_stage_q && !pte.u) || //For G-stage address translation, all memory accesses (including those made to access data structures for VS-stage address translation) are considered to be user-level accesses
                       (is_pte_leaf && !pte.r && pte.w)) //if pte.r=0 and pte.w=1, or if any bits or encodings that are reserved for future standard use are set within pte, stop and raise a page-fault exception corresponding to the original access type
@@ -260,7 +269,12 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
         end
     end else begin
         access_hit <= 1'b0;
-        if (dmem_ptw_comm_i.resp.valid && is_pte_table && !pte_cache_hit) begin
+        // Only cache non-leaf PTEs that the walk will actually follow: entries that raise a
+        // page fault (e.g. reserved A/D/U bits set on a non-leaf PTE) must never be cached,
+        // otherwise later walks take the S_REQ cache-hit shortcut and skip the invalid_pte
+        // check, losing the fault. Last-level entries are never consumed by that shortcut.
+        if (dmem_ptw_comm_i.resp.valid && is_pte_table && !invalid_pte &&
+            (count_q < $unsigned(LEVELS-1)) && !pte_cache_hit) begin
             if (full_cache) begin
                 ptecache_entry[plru_eviction_idx].valid <= 1'b1;
                 ptecache_entry[plru_eviction_idx].g_enable <= is_virtualized_env & is_g_stage_q;
@@ -428,8 +442,11 @@ assign g_resp_ppn = g_resp_ppn_lvl[count_q];
 // Send TLB Response to Arb
 assign ptw_tlb_comm.resp.valid = resp_val;
 assign ptw_tlb_comm.resp.error = resp_err;
+assign ptw_tlb_comm.resp.access_fault = access_fault_q;
 assign ptw_tlb_comm.resp.g_stage_error = resp_err & is_g_stage_q;
 assign ptw_tlb_comm.resp.level = count_q;
+assign ptw_tlb_comm.resp.pte.n = r_pte.n;
+assign ptw_tlb_comm.resp.pte.pbmt = (r_pte.pbmt > guest_pte_q.pbmt) ? r_pte.pbmt : guest_pte_q.pbmt;
 assign ptw_tlb_comm.resp.pte.ppn = is_virtualized_env? g_resp_ppn : resp_ppn;
 assign ptw_tlb_comm.resp.pte.rfs = r_pte.rfs;
 assign ptw_tlb_comm.resp.pte.d = r_pte.d;
@@ -462,6 +479,7 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
         last_g_stage_q <= '0;
         guest_pte_q <= '0;
         virt_level_q <= 0;
+        access_fault_q <= 1'b0;
     end
     else begin
         current_state <= next_state;
@@ -473,6 +491,7 @@ always_ff @(posedge clk_i, negedge rstn_i) begin
         last_g_stage_q <= last_g_stage_d;
         guest_pte_q <= guest_pte_d;
         virt_level_q <= virt_level_d;
+        access_fault_q <= access_fault_d;
     end
 end
 
@@ -490,6 +509,7 @@ always_comb begin
     last_g_stage_d = last_g_stage_q;
     guest_pte_d = guest_pte_q;
     virt_level_d = virt_level_q;
+    access_fault_d = access_fault_q;
     case (current_state)
         S_READY : begin
             guest_pte_d = '0;
@@ -500,6 +520,7 @@ always_comb begin
             vs_count_reg_d = '0;
             vs_pte_addr_reg_d = '0;
             last_g_stage_d = '0;
+            access_fault_d = 1'b0;
             if (tlb_ptw_comm.req.valid) begin
               next_state = S_REQ;
             end
@@ -528,6 +549,15 @@ always_comb begin
               pmu_ptw_hit_o = 1'b0;
               count_d = count_q;
               next_state = S_VS_TO_G;
+            end
+            // A page-table read to an address outside mapped memory raises an access
+            // fault, not a page fault. We leave S_REQ immediately without waiting for a
+            // response; the adapter suppresses the dCache request itself. req.valid is
+            // deliberately left alone: gating it here would close a combinational loop
+            // req.addr -> not_mapped -> xcpt_af -> req.valid through the dmem structs.
+            if (ptw_dmem_comm_o.req.valid & dmem_ptw_comm_i.resp.xcpt_af) begin
+                access_fault_d = 1'b1;
+                next_state = S_ERROR;
             end
         end
         S_WAIT : begin
@@ -566,6 +596,7 @@ always_comb begin
           virt_level_d   = count_q;
           guest_pte_d.ppn = resp_ppn;
           guest_pte_d.rfs = r_pte.rfs;
+          guest_pte_d.pbmt = g_stage_only ? 2'b00 : r_pte.pbmt;
           guest_pte_d.d = g_stage_only ? 1'b1 : r_pte.d;
           guest_pte_d.a = g_stage_only ? 1'b1 : r_pte.a;
           guest_pte_d.g = g_stage_only ? 1'b0 : r_pte.g;

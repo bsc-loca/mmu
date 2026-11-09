@@ -33,6 +33,9 @@ parameter PTESIZE = 8;
 parameter TLB_ENTRIES = 8;
 parameter TLB_IDX_SIZE = $clog2(TLB_ENTRIES);
 
+parameter NAPOT_BITS = 4;
+parameter [3:0] NAPOT_PPN_ENCODING = 4'b1000;
+
 parameter PTW_CACHE_SIZE = $clog2(LEVELS*2);
 
 parameter [1:0] GIGA_PAGE = 2'b00;  // 1 GiB Page
@@ -40,6 +43,9 @@ parameter [1:0] MEGA_PAGE = 2'b01;  // 2 MiB Page
 parameter [1:0] KILO_PAGE = 2'b10;  // 4 KiB Page
 
 typedef struct packed {
+    logic n;
+    logic [1:0] pbmt;
+    logic [6:0] reserved;
     logic [PPN_SIZE-1:0] ppn; 
     logic [1:0] rfs;
     logic d;
@@ -115,7 +121,11 @@ typedef struct packed {
     logic                miss;      // If the translation request missed set to 1 Otherwise, the rest of the signals have valid information of the response.
     logic [PPN_SIZE-1:0] ppn;       // Physical page number.
     logic [PPN_SIZE-1:0] guest_ppn; // Guest physical page number.
+    logic [1:0]          pbmt;      // Page-based memory type (Svpbmt).
     tlb_ex_t             xcpt;      // Exceptions produced by the requests.
+    logic                access_fault; // Qualifies xcpt: the walk failed on a page-table read
+                                       // to an address outside mapped memory, so the exception
+                                       // is an access fault rather than a page fault.
     tlb_ex_t             guest_xcpt; // Exceptions produced by the guest ppn in virtualized case.
     logic [7:0]          hit_idx;   // CAM hit index of the translation request.
 } tlb_cache_resp_t;                 // Translation response.
@@ -152,6 +162,7 @@ typedef struct packed {
 typedef struct packed {
     logic                      valid; // Translation response valid.
     logic                      error; // An error has ocurred with the translation request. Only check if the response is valid.
+    logic                      access_fault;    // The error is an access fault, not a page fault.
     logic                      g_stage_error;   // In case the error was during the G stage
     pte_t                      pte;   // Page table entry.
     pte_t                      guest_pte;   // guest Page table entry.
@@ -203,7 +214,10 @@ typedef struct packed {
     logic                   nempty; // The tlb entry is not empty, when the PTW sends a translation response that we don't have to ignore, it is set to 1.
     logic                   g_enable;
     logic                   vs_enable;
+    logic                   access_fault;    // The error is an access fault, not a page fault.
     logic                   g_stage_error;   // In case an error occured during the G stage
+    logic [1:0]             pbmt;   // Page-based memory type (Svpbmt).
+    logic                   napot;  // NAPOT translation contiguity (Svnapot) 
 } tlb_entry_t;                      // TLB page entry.
 
 typedef struct packed {
@@ -269,6 +283,7 @@ typedef struct packed {
     logic        xcpt_ma_st   ;
     logic        xcpt_pf_ld   ;
     logic        xcpt_pf_st   ;
+    logic        xcpt_af      ; // The page-table read address is outside mapped memory.
     logic        ordered      ;
 } dmem_ptw_resp_t;
 
@@ -289,6 +304,8 @@ typedef struct packed {
     logic flush_hgatp;
     csr_mstatus_t mstatus;
     csr_mstatus_t vsstatus;
+    logic menvcfg_pbmte;
+    logic henvcfg_pbmte;
 } csr_ptw_comm_t;
 
 endpackage

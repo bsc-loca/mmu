@@ -39,7 +39,11 @@ import mmu_pkg::*;
     output hpdcache_tag_t               req_dcache_tag_o,
     output hpdcache_pkg::hpdcache_pma_t req_dcache_pma_o,
     input  logic                        rsp_dcache_valid_i,
-    input  hpdcache_rsp_t               rsp_dcache_i
+    input  hpdcache_rsp_t               rsp_dcache_i,
+
+    // Asserted when the PTW's current page-table read address lies outside the
+    // mapped sections. Computed by the parent, which has the address map.
+    input  logic                        ptw_req_not_mapped_i
 );
 
     // Number of bits used in the request's offset address
@@ -62,7 +66,9 @@ import mmu_pkg::*;
 
     // PTW to HPDC
     always_comb begin
-        req_dcache_valid_o = ptw_dmem_comm_i.req.valid;
+        // Never issue a page-table read outside the mapped sections; the PTW turns
+        // this into an access fault in the same cycle.
+        req_dcache_valid_o = ptw_dmem_comm_i.req.valid & ~ptw_req_not_mapped_i;
 
         req_dcache_o.addr_tag = ptw_dmem_comm_i.req.addr[SIZE_VADDR:ADDR_OFFSET_BITS];
         req_dcache_o.addr_offset = ptw_dmem_comm_i.req.addr[ADDR_OFFSET_BITS-1:0];
@@ -112,6 +118,7 @@ import mmu_pkg::*;
         dmem_ptw_comm_o.resp.xcpt_ma_st    = '0;
         dmem_ptw_comm_o.resp.xcpt_pf_ld    = '0;
         dmem_ptw_comm_o.resp.xcpt_pf_st    = '0;
+        dmem_ptw_comm_o.resp.xcpt_af       = ptw_req_not_mapped_i;
         dmem_ptw_comm_o.resp.ordered       = '0;
         dmem_ptw_comm_o.resp.data =
             rsp_dcache_i.rdata[ptw_dmem_comm_i.req.addr[REQ_INDEX_BITS-1:WORD_BYTE_IDX_SIZE]];
